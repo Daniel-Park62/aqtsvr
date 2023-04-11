@@ -1,0 +1,144 @@
+# 날짜형식 확인
+rm /etc/localtime
+ln -s /usr/share/zoneinfo/Asia/Seoul /etc/localtime
+########################
+/usr/local 에 tar 푼다
+
+ln -s mariadb-10.5.9-linux-x86_64 mysql
+/usr/local/mysql/my.cnf 작성
+
+ln -s /usr/local/mysql/my.cnf /etc/my.cnf
+
+groupadd mysql
+useradd -g mysql -d /home/mysql/ -m -s /bin/bash  -c "mariadb USER" mysql
+
+passwd mysql <-  dawinit1
+
+chown -R mysql.mysql mariadb-10.5.9-linux-x86_64
+
+mkdir -p /db/data /db/log
+
+cd /db
+
+chown -R mysql.mysql data log
+
+cd /usr/local/mysql
+
+./scripts/mysql_install_db --basedir=/usr/local/mysql --datadir=/db/data --defaults-file=/usr/local/mysql/my.cnf --user=mysql
+
+./mysqld_safe --user=mysql &
+
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'dawinit1';
+SELECT Host,User,plugin,authentication_string FROM mysql.user;
+
+CREATE USER 'aqtdb'@'%' IDENTIFIED BY 'Dawinit1!';
+GRANT SELECT, DELETE, INSERT, EVENT, UPDATE, TRIGGER  ON `aqtdb2`.* TO 'aqtdb'@'%';
+GRANT SELECT, DELETE, INSERT, EVENT, UPDATE, TRIGGER  ON `aqtdb2`.* TO 'aqtdb'@'localhost';
+
+/usr/local/mysql/support-files/mysql.server 수정후
+
+/usr/local/mysql/support-files/mysql.server start
+
+##########  my.cnf
+[client]
+port            = 3306
+socket          = /tmp/mysql.sock
+default-character-set   = utf8
+
+[mysqld]
+datadir= /db/data
+port            = 3306
+socket          = /tmp/mysql.sock
+skip-host-cache
+skip-name-resolve
+
+autocommit = 1
+character-set-server    = utf8
+collation-server        = utf8_general_ci
+default-storage-engine = INNODB
+event_scheduler = ON
+innodb_buffer_pool_size = 2G
+innodb-buffer-pool-instances = 8
+innodb_file_per_table = 1
+innodb_flush_log_at_trx_commit  = 0
+
+innodb_purge_threads = 1
+innodb_read_io_threads = 8
+join_buffer_size = 8M
+lower_case_table_names = 1
+max_allowed_packet = 4M
+max_connect_errors = 100
+max_connections = 1000
+read_buffer_size = 2M
+read_rnd_buffer_size = 16M
+sort_buffer_size = 8M
+table_open_cache = 2048
+tmp_table_size = 64M
+transaction_isolation = READ-COMMITTED
+
+[mysqldump]
+quick
+max_allowed_packet = 700M
+
+[mysql]
+no-auto-rehash
+
+[mysqlhotcopy]
+interactive-timeout
+
+[mysqld_safe]
+open-files-limit = 8192
+log-error=/db/log/mariadb.log
+pid-file=/db/log/mariadb.pid
+
+
+==================
+Unzip the binary archive to any directory you wanna install Node, I use /usr/local/lib/nodejs
+ VERSION=v10.15.0
+ DISTRO=linux-x64
+ sudo mkdir -p /usr/local/lib/nodejs
+ sudo tar -xJvf node-$VERSION-$DISTRO.tar.xz -C /usr/local/lib/nodejs 
+Set the environment variable ~/.profile, add below to the end
+# Nodejs
+VERSION=v10.15.0
+DISTRO=linux-x64
+export PATH=/usr/local/lib/nodejs/node-$VERSION-$DISTRO/bin:$PATH
+Refresh profile
+. ~/.profile
+Test installation using
+$ node -v
+
+$ npm version
+
+$ npx -v
+
+the normal output is:
+
+
+
+sudo ln -s /usr/local/lib/nodejs/node-$VERSION-$DISTRO/bin/node /usr/bin/node
+
+sudo ln -s /usr/local/lib/nodejs/node-$VERSION-$DISTRO/bin/npm /usr/bin/npm
+
+sudo ln -s /usr/local/lib/nodejs/node-$VERSION-$DISTRO/bin/npx /usr/bin/npx
+
+
+==========================
+B. Decompress the package
+
+tar xvf pm2.tar.gz
+At this point, you can try the PM2 command
+/usr/local/node/lib/node_modules/pm2/bin/pm2
+
+C. It’s too inhumane to use a large string of code to Qidong program every time. Add a link to the global environment of the service area. Methods:
+
+The first step is to add it to the node environment under the directory / usr / local / node / bin:
+
+ln -s /usr/local/node/lib/node_modules/pm2/bin/pm2  /usr/local/node/bin/pm2
+ln -s /usr/local/node/lib/node_modules/pm2/bin/pm2-dev  /usr/local/node/bin/pm2-dev
+ln -s /usr/local/node/lib/node_modules/pm2/bin/pm2-docker  /usr/local/node/bin/pm2-docker
+ln -s /usr/local/node/lib/node_modules/pm2/bin/pm2-runtime  /usr/local/node/bin/pm2-runtime
+Step 2: add it to the Linux global environment, that is, the directory / usr / local / bin
+
+ln -s /usr/local/node/bin/pm2  /usr/local/bin/pm2
+Test it, enter PM2 directly, the following scenario will appear, you can announce the success, congratulations.

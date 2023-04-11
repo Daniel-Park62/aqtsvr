@@ -1,0 +1,5 @@
+#!/bin/bash
+MARIABIN="/usr/local/mysql/bin"
+HOST="-h 192.168.0.27"
+
+${MARIABIN}/mysql ${HOST} -uaqtdb -pDawinit1! -N -Daqtdb2 -se "$1"

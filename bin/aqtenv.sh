@@ -1,0 +1,5 @@
+AQTHOME=/mnt/d/PROJ/aqt/하나증권
+AQTLOG=$AQTHOME/logs
+
+echo $AQTHOME $AQTLOG
+export AQTHOME AQTLOG

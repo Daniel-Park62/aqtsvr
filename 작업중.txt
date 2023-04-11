@@ -1,0 +1,22 @@
+# sysctl -a | grep kernel.msg
+
+kernel.msgmax = 8192    (최대 허용 크기) 
+kernel.msgmni = 16  (최대 허용 Queue 갯수) 
+kernel.msgmnb = 16384    (Queue당 최대 허용 크기)
+
+
+현재 Message Queue 사이즈 변경 
+# sysctl -w kernel.msgmax=2097152 
+# sysctl -w kernel.msgmnb=1048576 
+
+
+[설정파일에 반영 - 시스템 구동시 반영 적용]
+
+#/etc/sysctl.conf 안의 내용을 변경
+
+kernel.msgmax=8192
+kernel.msgmnb=16384
+kernel.msgmmni=16
+
+
+make -j 
