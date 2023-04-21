@@ -1,12 +1,13 @@
 module.exports = {
     tcode:null,
-    dstip:'192.168.147.10',
-    dstport:'10002 || 10003' ,
+    dstip: '192.168.147.10',//'27.102' , // 
+    dstport:'' ,
     svcid:'',
     ptype:'F',
     dstv:null,
+    otherCond :'', // ex ->   ' && ( port 80 || 8080 ) '
     norcv:null,
     conn:null,
-    maxcnt:500,
+    maxcnt:5,
     jobId:0
 };

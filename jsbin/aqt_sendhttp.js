@@ -1,11 +1,11 @@
 "use strict";
 /*
-  Å×½ºÆ®id Á¶°Ç limit 
+  í…ŒìŠ¤íŠ¸id ì¡°ê±´ limit 
 */
 const MAX_RESP_LEN = 1024 * 32;
 const v_tcode = process.argv[2] ;
 if (undefined == v_tcode ) {
-  console.info("Å×½ºÆ®ID¸¦ ÁöÁ¤ÇÏ¼¼¿ä.") ;
+  console.info("í…ŒìŠ¤íŠ¸IDë¥¼ ì§€ì •í•˜ì„¸ìš”.") ;
   process.exit(1) ;
 }
 
@@ -19,12 +19,13 @@ moment.prototype.toSqlfmt = function () {
 
 console.log("## Start send Data : ", v_tcode );
 
-const sendhttp = require('./lib/sendHttp') ;
-con.getConnection().then( conn => {
-  let param = { tcode : v_tcode, cond: (process.argv[3] ?  process.argv[3] : "" )
-              , conn: conn, limit:(process.argv[4] ?  process.argv[4] : "" ), interval: 0
+const sendhttp = require('./lib/sendHttp2') ;
+con.getConnection().then(  conn => {
+  let param = { tcode : v_tcode, cond: (process.argv[3] ?  process.argv[3] : ""), dbskip:false, tnum : 1
+              , conn: conn,conp:con, limit:(process.argv[4] ?  process.argv[4] : "" ), interval: 0
+              , exit: 1
             } ;
-  sendhttp(param) ;
+  new sendhttp(param) ;
 })
 
 // process.on('SIGINT', process.exit(0) );

@@ -127,6 +127,7 @@ function parsePacketBody() {
   return false;
 }
 
+
 function Parser(input) {
   if (typeof(input) == 'string') {
     this.stream = fs.createReadStream(input);

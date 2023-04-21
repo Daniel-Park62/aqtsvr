@@ -1,11 +1,9 @@
 
-function aa() {
-    return new Promise((resolve) => {
-        setTimeout(() => resolve("ok") , 3000);
-    });
+const aa = () => {
+    return new Promise((resolve) => { return "ook"} );
 }
-(async () => { xx = aa(); console.log(xx) })()  ;
-console.log("ggg");
+
+aa().then( console.log ) ;
 /*
 
 const { networkInterfaces } = require('os');

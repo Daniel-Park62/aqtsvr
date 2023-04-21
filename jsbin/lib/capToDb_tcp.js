@@ -31,35 +31,35 @@ module.exports = function (args) {
     const PROTOCOL = decoders.PROTOCOL;
     const fs = require('fs');
     let dstobj;
+    let child = null ;
     let ltype = 1;
     icnt = 0 ;
-    console.log("%s Start 테스트id(%s) 입력파일(%s)", PGNM,args.tcode, args.dstv);
-
-    if (args.ptype == 'F') {
-        fs.statSync(args.dstv);
+    console.log("%s Start 테스트id(%s) 대상(%s)", PGNM,args.tcode, args.dstv);
+    
+    try {
+        if (!fs.statSync(args.dstv).isFile()) throw 'is not File';
         dstobj = args.dstv;
-    } else {
+    } catch (err) {
+        // console.error(err);
+
         console.log(PGNM, "START tcpdump");
-        const PORT = (args.dstport ? ` && port ( ${args.dstport} )` : "");
-        const NETIP = (args.dstv ? ` && net ( ${args.dstv} ) ` : "");
-        console.log(NETIP);
-        const child = spawn('tcpdump -i2 -n -s0 -w - "', ["tcp && tcp[13]&16 != 0 ", NETIP,PORT,'"'], { shell: true });
+        const NETIP = (args.dstv ? ` && ( net ${args.dstv} ) ` : "");
+        child = spawn('tcpdump -i2 -n -s0 -w - "', ["tcp && tcp[13]&16 != 0 ", NETIP,args.otherCond ,'"'], { shell: true });
         dstobj = child.stdout;
         process.on('SIGINT', () => child.kill());
     }
-
+    
     const parser = pcapp.parse(dstobj);
     parser.on('globalHeader', (gheader)=> {
         ltype = gheader.linkLayerType ;
         console.log(gheader) ;
     });
 
+    let endsw = 1;
     parser.on('packet', async function (packet) {
         if (args.maxcnt > 0 && args.maxcnt <= icnt) {
-            parser.emit('end');
-            args.maxcnt = 0 ;   
+            if (endsw) { endsw = 0; endprog();}
             return ;
-            // process.emit('SIGINT') ;
         }
 
         let ret = decoders.Ethernet(packet.data);
@@ -177,16 +177,10 @@ module.exports = function (args) {
 
     });
 
-    parser.on('end', async () => { 
-					// console.log("*** packet end ** (%d)(%d)", myMap.size,icnt) ;
-					await endprog() ;  
-					console.log("*** packet end ** (%d)(%d)", myMap.size,icnt) ;
-					con.end().then( process.exit(0) ) ;
-					// setTimeout( () => process.exit(0) , 10000);
-	});
+    parser.on('end', endprog) ;
     
 	async function insert_data(datas ) {
-			await con.query("INSERT INTO TLOADDATA \
+			return await con.query("INSERT INTO TLOADDATA \
 			(TCODE, CMPID,O_STIME,STIME,RTIME, SRCIP,SRCPORT,DSTIP,DSTPORT,PROTO, URI,SEQNO,ACKNO,slen,rlen,SDATA,RDATA) \
 			values \
 			( ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?) ;",
@@ -204,16 +198,22 @@ module.exports = function (args) {
 	}
 	
     async function endprog() {
-		console.log("end process start") ;
+		console.log("end process start", child.spawnargs) ;
         // myMap.forEach(async (datas, ky) => {
         for ( let [ky, datas ] of myMap ) {
             if ( ! datas.rdata.length  ) continue ;
             // if (datas.rhead.length > 0 || datas.rdata.length > 0) {
                 // datas.rdata = bufTrim(datas.rdata);
             await insert_data(datas ) ;
-            myMap.delete(ky);
+            
         };
-        return "job complet";
+        myMap.clear();
+        console.log("%s *** Import completed (%d 건)***", PGNM, icnt);
+
+        await con.end();
+
+        process.exit();
+
     }
 
 }

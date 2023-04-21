@@ -30,22 +30,22 @@ module.exports = function (args) {
     const pcapp = require('./pcap-parser');
 
     const moment = require('moment');
-    const decoders = require('./Decoders')
+    const decoders = require('./Decoders');
     const PROTOCOL = decoders.PROTOCOL;
     const fs = require('fs');
     let dstobj;
     let ltype = 1;
     icnt = 0;
     console.log("%s Start 테스트id(%s) 입력파일(%s)", PGNM, args.tcode, args.dstv);
-    if (args.ptype == 'F') {
-        fs.statSync(args.dstv);
+    try {
+        if (!fs.statSync(args.dstv).isFile()) throw 'is not File';
         dstobj = args.dstv;
-    } else {
+    } catch (err) {
+        // console.error(err);
+
         console.log(PGNM, "START tcpdump");
-        const PORT = (args.dstport ? ` && port ( ${args.dstport} )` : "");
-        const NETIP = (args.dstv ? ` && net ( ${args.dstv} ) ` : "");
-        console.log(NETIP);
-        const child = spawn('tcpdump -i2 -n -s0 -w - "', ["tcp && tcp[13]&16 != 0 ", NETIP,PORT,'"'], { shell: true });
+        const NETIP = (args.dstv ? ` && ( net ${args.dstv} ) ` : "");
+        child = spawn('tcpdump -i2 -n -s0 -w - "', ["tcp && tcp[13]&16 != 0 ", NETIP,args.otherCond ,'"'], { shell: true });
         dstobj = child.stdout;
         process.on('SIGINT', () => child.kill());
     }
@@ -56,7 +56,12 @@ module.exports = function (args) {
         console.log(gheader);
     });
 
+    let endsw = 1;
     parser.on('packet', async function (packet) {
+        if (args.maxcnt > 0 && args.maxcnt <= icnt) {
+            if (endsw) { endsw = 0;  endprog();}
+            return ;
+        }
 
         let ret = decoders.Ethernet(packet.data);
         let ptime = moment.unix(packet.header.timestampSeconds).format('YYYY-MM-DD HH:mm:ss') + '.' + packet.header.timestampMicroseconds;
@@ -79,6 +84,7 @@ module.exports = function (args) {
             const dstip = ret.info.dstaddr;
 
             if (ret.info.protocol === PROTOCOL.IP.TCP) {
+        
                 let datalen = ret.info.totallen - ret.hdrlen;
 
                 // console.log(PGNM,'Decoding TCP ...');
@@ -137,7 +143,7 @@ module.exports = function (args) {
                         datas.uri = mdata[2].replace(/(.+)\/$/, '$1');
                     }
                     if (args.norcv && datas.slen <= datas.sdata.length) {
-                        insert_data(datas);
+                        await insert_data(datas);
                         return;
                     }
 
@@ -201,7 +207,7 @@ module.exports = function (args) {
 
                     // if (rval.chk || datas.rlen > 0 && (datas.rdata.length >= (MAX_RESP_LEN >= datas.rlen ? MAX_RESP_LEN : datas.rlen))) {
                     if (rval.chk || datas.rlen == 0 || datas.rdata.length >= datas.rlen || ret.info.flags & 0x08) {
-                        insert_data(datas);
+                        await insert_data(datas);
                         myMap.delete(ky);
                     } else {
                         myMap.set(ky, datas);
@@ -234,7 +240,7 @@ module.exports = function (args) {
 
     });
 
-    parser.on('end', () => endprog());
+    parser.on('end', endprog );
     const iconv = require('iconv-lite');
 
     function bufTrimN(buf, isUTF8) {
@@ -261,7 +267,7 @@ module.exports = function (args) {
     async function endprog() {
         let cnt = 0;
         let tcnt = myMap.size;
-        console.log(PGNM,"myMap", tcnt);
+        if (tcnt) console.log(PGNM,"myMap:", tcnt);
         for (let datas of myMap.values()) {
             // if (datas.rhead.length == 0)  datas.rhead = 'No Data' ;
             if (datas.rhead.length > 0 || datas.rdata.length > 0) {
@@ -279,22 +285,19 @@ module.exports = function (args) {
 
         console.log("%s *** Import completed (%d 건)***", PGNM, icnt);
 
-        con.end();
-        // child.kill('SIGINT') ;
+        await con.end();
 
-        // setTimeout( process.exit, 0) ;
+        process.exit();
 
-        // hid.close() ;
     }
-
 
     async function insert_data(datas) {
         if (args.norcv == 'X') {
             process.stdout.write(datas.sdata);
-            return;
+            return ;
         }
-
-        await con.query("INSERT INTO TLOADDATA \
+        
+        return await con.query("INSERT INTO TLOADDATA \
             (TCODE, CMPID,O_STIME,STIME,RTIME, SRCIP,SRCPORT,DSTIP,DSTPORT,PROTO, URI,SEQNO,ACKNO \
                 ,RCODE,RHEAD,slen,rlen,SDATA,RDATA) \
             values \

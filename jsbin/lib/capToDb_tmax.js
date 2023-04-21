@@ -2,7 +2,7 @@
 
 const MAX_RESP_LEN = 1024 * 1024 * 2;
 const SIZE_BLOB = 1024 * 1024 * 2;
-const PGNM = capToDb_tmax;
+const PGNM = "capToDb_tmax";
 const { resolve } = require('path');
 let con ;
 
@@ -35,16 +35,15 @@ module.exports = function (args) {
     icnt = 0;
     console.log("%s Start ", PGNM, args.tcode, args.dstv);
 
-    // process.on('SIGINT', () => endprog);
-    if (args.type == 'F') {
-        fs.statSync(args.dstv);
+    try {
+        if (!fs.statSync(args.dstv).isFile()) throw 'is not File';
         dstobj = args.dstv;
-    } else {
-        console.log(PGNM, args.dstv, "Start");
-        const PORT = (args.dstport ? ` && port ( ${args.dstport} )` : "");
-        const NETIP = (args.dstv ? ` && net ( ${args.dstv} ) ` : "");
-        console.log(NETIP);
-        const child = spawn('tcpdump -i2 -n -s0 -w - "', ["tcp && tcp[13]&16 != 0 ", NETIP,PORT,'"'], { shell: true });
+    } catch (err) {
+        // console.error(err);
+
+        console.log(PGNM, "START tcpdump");
+        const NETIP = (args.dstv ? ` && ( net ${args.dstv} ) ` : "");
+        child = spawn('tcpdump -i2 -n -s0 -w - "', ["tcp && tcp[13]&16 != 0 ", NETIP,args.otherCond ,'"'], { shell: true });
         dstobj = child.stdout;
         process.on('SIGINT', () => child.kill());
     }
@@ -54,8 +53,12 @@ module.exports = function (args) {
         ltype = gheader.linkLayerType;
         console.log(gheader);
     });
-
+    let endsw = 1;
     parser.on('packet', async function (packet) {
+        if (args.maxcnt > 0 && args.maxcnt <= icnt) {
+            if (endsw) { endsw = 0; endprog();}
+            return ;
+        }
 
         let ret = decoders.Ethernet(packet.data);
         let ptime = moment.unix(packet.header.timestampSeconds).format('YYYY-MM-DD HH:mm:ss') + '.' + packet.header.timestampMicroseconds;
@@ -200,10 +203,7 @@ module.exports = function (args) {
 
     });
 
-    parser.on('end', () => {
-        console.log("** packet end ** (%d) (%d)", myMap.size, icnt);
-        endprog();
-    });
+    parser.on('end', endprog);
 
     async function insert_data(datas) {
         if (args.norcv == 'X')
@@ -257,7 +257,7 @@ module.exports = function (args) {
         myMap.clear();
         if (args.jobId) {
             await con.query("UPDATE texecjob set resultstat = 2, msg = concat(msg,now(),':',?,'\r\n' ), endDt = now() where pkey = ? ",
-                [icnt + " 건 Import", jobId]);
+                [icnt + " 건 Import", args.jobId]);
         }
         await con.end();
 

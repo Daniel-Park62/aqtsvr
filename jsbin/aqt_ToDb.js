@@ -1,8 +1,10 @@
 "use strict";
 
 const cdb = require('./lib/capToDb_tcp') ;
+// const cdb = require('./lib/capToDb') ;
 // const cdb = require('./lib/capToDb_tmax') ;
 const args = require('./cap_info');
+
 args.tcode = process.argv[2];
 args.dstv = process.argv[3] ;
 

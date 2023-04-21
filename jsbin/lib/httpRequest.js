@@ -1,104 +1,52 @@
-/*
-  { tcode, loop , cond, limit, dbskip, interval,jobId }
-*/
-
 "use strict";
 
-const MAX_RESP_LEN = 1024 * 32;
-const PGNM = '[sendHttp]';
-
+const  { parentPort, threadId,  workerData } = require('worker_threads');
 const moment = require('moment');
 const iconv = require('iconv-lite');
 const http = require('http');
-const ckMap = new Map();  // cookie 저장
-
-const aqttimeout = process.env.aqtHttpTimeOut || 5000;
-console.log("TimeOut:", aqttimeout, " (set aqtHttpTimeOut=ms)");
+const mariadb = require('mariadb');
+const config = require('../db/dbinfo').real;
 moment.prototype.toSqlfmt = function (ms) {
   return this.format('YYYY-MM-DD HH:mm:ss.' + ms);
 };
 
-let con = null;
-let conp = null;
-let dbskip = false;
+let con ;
+(async ()=> {
+  con = await mariadb.createConnection( { host: config.host,
+    port: config.port,
+    user: config.user,
+    password: config.password,
+    database: config.database }
+  );
+  // console.log(threadId,"db connected") ;
+  process.on('SIGTERM', con.end );
+  parentPort.postMessage({ready:1}) ;
+})();
+const ckMap = new Map();
+// const {tcode, cond, dbskip, interval, limit, loop } = workerData ;
+let param = workerData ;
 
-module.exports =  function (param) {
-  con = param.conn;
-  conp = param.conp;
-  if (!param.loop) param.loop = 1;
-  param.loop--;
-  let tcnt = 0;
-  let cnt = 0;
-  let ucnt = 0;
-  let condi = param.cond > ' ' ? "and (" + param.cond + ")" : "";
-  let vlimit = param.limit > ' ' ? ' LIMIT ' + param.limit : "";
-  dbskip = param.dbskip;
+// console.log("thread id:",threadId, param);
 
-  const qstr = "SELECT COUNT(*) cnt FROM ( select 1 from ttcppacket t where tcode = ? " + condi + vlimit + ") x";
+parentPort.on('message', (pkey) => {
+  if (pkey?.svCook) {
+    saveCookie(pkey.svCook) ;
+    return ;
+  }
+  // console.log(pkey) ;
+  con.query("SELECT t.tcode, t.pkey,o_stime, if( ifnull(m.thost2,IFNULL(c.thost,''))>'',ifnull(m.thost2,c.thost) ,dstip) dstip," +
+  " if(ifnull(m.tport2,IFNULL(c.tport,0))>0, ifnull(m.tport2,c.tport), dstport) dstport,uri,method,sdata, rlen " +
+  "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
+  "where t.pkey = ? ", [pkey])
+  .then( rdata =>  dataHandle(rdata[0]) ) 
+  
+});
 
-  con.query(qstr, [param.tcode])
-    .then(row => {
-      tcnt = row[0].cnt;
-      console.log(PGNM, row[0], qstr);
-      console.log("%s Start 테스트id(%s) cond(%s) limit(%s) data건수 (%d) pid(%d)", PGNM, param.tcode, condi, vlimit, tcnt, process.pid);
-    })
-    .catch(err => console.log(PGNM, err));
-
-  const qstream = con.queryStream("SELECT t.tcode, t.pkey,o_stime, if( ifnull(m.thost2,IFNULL(c.thost,''))>'',ifnull(m.thost2,c.thost) ,dstip) dstip," + 
-    " if(ifnull(m.tport2,IFNULL(c.tport,0))>0, ifnull(m.tport2,c.tport), dstport) dstport,uri,method,sdata, rlen " +
-    "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
-    "where t.tcode = ? " + condi + " order by o_stime  " + vlimit, [param.tcode]);
-  qstream.on("error", err => {
-    console.log(PGNM, err); //if error
-  });
-  qstream.on("fields", meta => {
-    // console.log(PGNM,meta); // [ ...]
-  });
-  qstream.on("data",  row => {
-    cnt++ ;
-    // qstream.pause();
-    // (cnt+1) % 100 == 0 && console.log(PGNM, row.tcode, cnt, row.uri);
-    if (param.interval > 0) {
-      setTimeout( () => {
-        dataHandle(row, (a = 0) => {  ucnt+=a } );
-      }, param.interval);
-    } else {
-      dataHandle(row,(a = 0) => {  ucnt+=a } ) ;
-    }
-  });
-
-  qstream.on("end", () => {
-    console.log(PGNM, param.tcode, "*** read ended ***");
-
-    let ival = setInterval(async () => {
-      // console.log(PGNM, "@@ end check @@", tcnt, cnt);
-      if ( ucnt >= tcnt) {
-        clearInterval(ival);
-        if (param.loop > 0) {
-          console.log(PGNM, "loop");
-          new module.exports(param);
-        } else {
-          if (!dbskip)
-            await con.query('call sp_summary(?)', [param.tcode]);
-
-          if (param.hasOwnProperty('jobId'))
-            await con.query("UPDATE texecjob set resultstat = 2, msg = concat(msg,now(),':',?,'\r\n' ), endDt = now() where pkey = ? ",
-              [cnt + " 건 수행", param.jobId]);
-          console.log( `${cnt} read, ${ucnt} update`)
-          process.exit(0);
-        }
-      }
-    }, 2000);
-
-  });
-}
-
-function dataHandle(rdata, cback ) {
-  let stime = moment();
-  let stimem = Math.ceil(process.hrtime()[1] / 1000);
+function dataHandle(rdata ) {
   let sdataStr = rdata.sdata.toString();
   if (! /^(GET|POST|DELETE|PUT|PATCH)\s+(\S+)\s/s.test(sdataStr)) {
-    return cback(1);
+    parentPort.postMessage({ready:1}) ;
+    return ;
   }
 
   let uri = /^(GET|POST|DELETE|PUT|PATCH)\s+(\S+)\s/s.exec(sdataStr)[2];
@@ -111,14 +59,15 @@ function dataHandle(rdata, cback ) {
   }
   if (/[^a-z0-9\:\/\?\#\[\]\@\!\$\&\'\(\)\*\+\,\;\=\.\-\_\~\%]/i.test(uri)) {
     console.log(PGNM + "%s ** inValid URI : %s , uid=%d", rdata.tcode, uri, rdata.pkey);
-    return cback(1) ;
+    parentPort.postMessage({ready:1}) ;
+    return;
   }
   const options = {
     hostname: rdata.dstip,
     port: rdata.dstport,
     path: uri,
     method: rdata.method,
-    timeout: aqttimeout,
+    timeout: param.aqttimeout,
     headers: {
       // connection: "keep-alive",
     },
@@ -158,9 +107,8 @@ function dataHandle(rdata, cback ) {
       }
     }
   };
-
-  stime = moment();
-  stimem = Math.ceil(process.hrtime()[1] / 1000);
+  let stime = moment();
+  let stimem = Math.floor(process.hrtime()[1] / 1000);
 
   const req = http.request(options, function (res) {
     // stime = moment();
@@ -170,7 +118,8 @@ function dataHandle(rdata, cback ) {
     for (const [key, value] of Object.entries(res.headers)) {
       resHs += `${key}: ${value}\r\n`;
       if (/set-cookie/i.test(key)) {
-        saveCookie(rdata, `${value}`);
+        saveCookie(`${value}`) ;
+        parentPort.postMessage({svCook:value}) ;
       }
     };
 
@@ -184,25 +133,26 @@ function dataHandle(rdata, cback ) {
     });
     res.on('end', () => {
       // console.log("* res end *",rdata.uri) ;
-      if (dbskip) {
+      if (param.dbskip) {
         console.log("skip ok",rdata.uri)
-        return cback(1) ;
+        parentPort.postMessage({ready:1}) ;
+        return;
       }
-      const rtime = moment();
       const rtimem = Math.ceil(process.hrtime()[1] / 1000);
-      if (rtimem < stimem && stime.isSame(rtime, 'second')) rtime.add('1', 's');
+      const rtime = moment();
+      if (rtimem < stimem && stime.isSameOrAfter(rtime, 'second')) rtime.add('1', 's');
       const svctime = moment.duration(rtime.diff(stime)).asSeconds() ;
+      
       let rDatas = Buffer.concat(recvData);
       const rsz = res.headers['content-length'] || rDatas.length;
 
       // console.log(PGNM, stime.toSqlfmt(), rtime.toSqlfmt(), svctime, 'id=',rdata.pkey, 'rcv len=', rsz );
       // let new_d = Buffer.from(resdata,'binary') ;
-       conp.query("UPDATE ttcppacket SET \
+       con.query("UPDATE ttcppacket SET \
                     rdata = ?, sdata = ?, stime = ?, rtime = ?,  elapsed = ?, rcode = ? ,rhead = ?, rlen = ? ,cdate = now() where pkey = ? "
         , [rDatas, Buffer.from(new_shead), stime.toSqlfmt(stimem), rtime.toSqlfmt(rtimem), svctime, res.statusCode, resHs, rsz, rdata.pkey])
           .catch(err => console.error(PGNM, 'update error:', rdata.pkey, err) ) 
-          .then(console.log("* update *",rdata.uri)) 
-          .finally( cback(1) ) ;
+          .then(parentPort.postMessage({ok:1})) ;
     });
   });
   if (pi > 0 && /POST|PUT|DELETE|PATCH/.test(rdata.method)) {
@@ -218,12 +168,12 @@ function dataHandle(rdata, cback ) {
 
     const svctime = moment.duration(rtime.diff(stime)) / 1000.0;
 
-    if (!dbskip)
-      conp.query("UPDATE ttcppacket SET \
+    if (!param.dbskip)
+      con.query("UPDATE ttcppacket SET \
                       sdata = ?,  stime = ?, rtime = ?,  elapsed = ?, rcode = ? , rhead = ? , cdate = now() where pkey = ?"
         , [Buffer.from(new_shead), stime.toSqlfmt(stimem), rtime.toSqlfmt(rtimem), svctime, 999, e.message, rdata.pkey])
         ;
-    cback(1) ;
+    parentPort.postMessage({err:1}) ;
   });
   req.end();
 
@@ -245,33 +195,34 @@ function dataHandle(rdata, cback ) {
 
   }
 
-  
-}
-
-function parseCookies(cookie = '') {
-  // console.log("cookie : ",cookie);
-  return cookie
-    .split(';')
-    .map(v => v.split('='))
-    .map(([k, ...vs]) => [k, vs.join('=')])
-    .reduce((acc, [k, v]) => {
-      acc[k.trim()] = v; // decodeURIComponent(v);
-      return acc;
-    }, {});
-}
-
-function saveCookie(rdata, cook) {
-  const ckData = parseCookies(cook);
-  const path = ckData.Path || '/';
-  let sv_ckData = ckMap.get(rdata.dstip + ':' + rdata.dstport) || {};
-  let xdata = sv_ckData[path] || {};
-  for (const k in ckData) {
-    if (/Path|HttpOnly|Secure/.test(k)) continue;
-    xdata[k] = ckData[k];
+  function parseCookies(cookie = '') {
+    // console.log("cookie : ",cookie);
+    return cookie
+      .split(';')
+      .map(v => v.split('='))
+      .map(([k, ...vs]) => [k, vs.join('=')])
+      .reduce((acc, [k, v]) => {
+        acc[k.trim()] = v; // decodeURIComponent(v);
+        return acc;
+      }, {});
   }
-
-  sv_ckData[path] = xdata;
-  ckMap.set(rdata.dstip + ":" + rdata.dstport, sv_ckData);
-  // ckMap.forEach((v,k) => console.log(k, v)) ;
-
+  
+  function saveCookie( cook) {
+    const ckData = parseCookies(cook);
+    const path = ckData.Path || '/';
+    let sv_ckData = ckMap.get(rdata.dstip + ':' + rdata.dstport) || {};
+    let xdata = sv_ckData[path] || {};
+    for (const k in ckData) {
+      if (/Path|HttpOnly|Secure/.test(k)) continue;
+      xdata[k] = ckData[k];
+    }
+  
+    sv_ckData[path] = xdata;
+    ckMap.set(rdata.dstip + ":" + rdata.dstport, sv_ckData);
+  
+  }
+    
 }
+
+process.on('SIGINT', parentPort.close );
+
