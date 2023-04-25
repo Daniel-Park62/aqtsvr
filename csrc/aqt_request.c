@@ -51,7 +51,7 @@ static MYSQL *conn = NULL;
 
 static unsigned int _iTotCnt = 0;
 
-static void Closed(void);
+static void Closed(int);
 static void _Signal_Handler(int sig);
 static int connectDB();
 static void closeDB();
@@ -70,7 +70,7 @@ void _Signal_Handler(int sig)
 
   LOGINFO("%s SIGNAL(%d) Read:(%d) ",__FILE__, sig, _iTotCnt);
 
-  Closed();
+  Closed(1);
   exit(1);
 }
 
@@ -160,14 +160,14 @@ int main(int argc, char *argv[])
 
   if (_Init() != 0)
   {
-    Closed();
+    Closed(1);
     return (-1);
   }
 
   if ((msgid = msgget(msgkey, IPC_CREAT | 0666)) == -1)
   {
     LOGERROR("msgget failed");
-    Closed();
+    Closed(1);
     return (-1);
   }
 
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
     if (mysql_query(conn, query))
     {
       LOGERROR("query error : %s", mysql_error(conn));
-      Closed();
+      Closed(1);
       return (1);
     }
     MYSQL_RES *result = mysql_store_result(conn);
@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
     {
       LOGERROR("result error : %s", mysql_error(conn));
       ;
-      Closed();
+      Closed(1);
       return (1);
     }
 
@@ -227,7 +227,7 @@ int main(int argc, char *argv[])
   LOGINFO("** Read Count[%d]", _iTotCnt);
 
   LOGINFO("*** END PROG %s***",__FILE__);
-  Closed();
+  Closed(0);
   exit(0);
 }
 
@@ -243,7 +243,7 @@ static void fork_proc(int c) {
   }
 }
 
-void Closed()
+void Closed(int x)
 {
   struct msqid_ds msqstat;
 
@@ -257,7 +257,7 @@ void Closed()
         LOGINFO("msgctl IPC_STAT FAILED");
         break;
       }
-      if (msqstat.msg_qnum == 0)
+      if (msqstat.msg_qnum == 0 || x == 1)
         break;
       usleep(500);
     }

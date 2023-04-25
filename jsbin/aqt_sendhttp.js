@@ -9,20 +9,9 @@ if (undefined == v_tcode ) {
   process.exit(1) ;
 }
 
-const con = require('./db/db_con');
-
-const moment = require('moment');
-const http = require('http');
-moment.prototype.toSqlfmt = function () {
-    return this.format('YYYY-MM-DD HH:mm:ss.SSSSSS');
-};    
-
-console.log("## Start send Data : ", v_tcode );
-
-const sendhttp = require('./lib/sendHttp2') ;
-con.getConnection().then(  conn => {
+require('./db/db_con1').then(  conn => {
   let param = { tcode : v_tcode, cond: (process.argv[3] ?  process.argv[3] : ""), dbskip:false, tnum : 1
-              , conn: conn,conp:con, limit:(process.argv[4] ?  process.argv[4] : "" ), interval: 0
+              , conn: conn, limit:(process.argv[4] ?  process.argv[4] : "" ), interval: 0
               , exit: 1
             } ;
   new sendhttp(param) ;

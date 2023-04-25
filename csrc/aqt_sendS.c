@@ -65,7 +65,7 @@ static char cond_etc[1024];
 
 static void Usage(void);
 static void print_status(void);
-static void Closed(void);
+static void Closed(int);
 static void _Signal_Handler(int sig);
 static int connectDB();
 static void closeDB();
@@ -93,7 +93,7 @@ void _Signal_Handler(int sig)
   }
 
   LOGINFO("%s SIGNAL(%d) [%s] Read:(%d) ", __FILE__, sig, _test_code, _iTotCnt);
-  Closed();
+  Closed(1);
   exit(1);
 }
 
@@ -278,7 +278,7 @@ int get_target(char *test_code)
   if (result == NULL)
     return (-1);
   MYSQL_ROW row = mysql_fetch_row(result);
-  if (row == NULL)
+  if (row == NULL )
   {
     LOGERROR("** 테스트코드를 확인하세요.(%s)", test_code);
     ret = -1;
@@ -286,6 +286,10 @@ int get_target(char *test_code)
   else
   {
     unsigned long *len = mysql_fetch_lengths(result);
+    if (len[0] == 0) {
+      LOGERROR("** 테스트대상서버 정보를 확인하세요.(%s)", test_code);
+      ret = -1;
+    }
     memmove(_conn_label, row[0], len[0]);
 
     _lvl = row[2][0];
@@ -313,14 +317,14 @@ int main(int argc, char *argv[])
   if (_Init(argc, argv) != 0)
   {
     Usage();
-    Closed();
+    Closed(1);
     return (-1);
   }
 
   if ((msgid = msgget(msgkey, IPC_CREAT | 0666)) == -1)
   {
     LOGERROR("msgget failed");
-    Closed();
+    Closed(1);
     return (-1);
   }
 
@@ -340,7 +344,7 @@ int main(int argc, char *argv[])
   {
     LOGERROR("query error : %s", mysql_error(conn));
 
-    Closed();
+    Closed(1);
     return (1);
   }
   MYSQL_RES *result = mysql_store_result(conn);
@@ -348,7 +352,7 @@ int main(int argc, char *argv[])
   {
     LOGERROR("result error : %s", mysql_error(conn));
     ;
-    Closed();
+    Closed(1);
     return (1);
   }
 
@@ -403,7 +407,7 @@ REPEAT:
   print_status();
   LOGINFO("%s LOOP END",__FILE__);
 
-  Closed();
+  Closed(0);
   exit(0);
 }
 
@@ -412,7 +416,7 @@ void print_status()
   LOGINFO("**[%s] Read Count[%d]", _test_code, _iTotCnt);
 }
 
-void Closed()
+void Closed(int x)
 {
   if (msgid >= 0)
   {
@@ -424,9 +428,9 @@ void Closed()
         LOGINFO("msgctl IPC_STAT FAILED");
         break;
       }
-      if (msqstat.msg_qnum == 0)
+      if (msqstat.msg_qnum == 0 || x == 1)
         break;
-      sleep(1);
+      usleep(500);
     } while (1);
     msgctl(msgid, IPC_RMID, 0);
   }

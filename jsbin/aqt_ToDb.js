@@ -1,14 +1,18 @@
 "use strict";
+let aqttype ;
+if ( process.env.AQTTYPE === 'TMAX') 
+    aqttype = 'capToDb_tmax' ;
+else if ( process.env.AQTTYPE === 'TCP') 
+    aqttype = 'capToDb_tcp' ;
+else
+    aqttype = 'capToDb' ;
+const cdb = require('./lib/' + aqttype) ;
 
-const cdb = require('./lib/capToDb_tcp') ;
-// const cdb = require('./lib/capToDb') ;
-// const cdb = require('./lib/capToDb_tmax') ;
 const args = require('./cap_info');
+const conp = require('./db/db_con1') ;
 
 args.tcode = process.argv[2];
 args.dstv = process.argv[3] ;
-
-const con = require('./db/db_con');
 
 if (!args.dstv || !args.tcode ) {
     console.info("( 테스트id  대상호스트 ) 를 입력하세요");
@@ -24,7 +28,7 @@ try {
 }
 
 // console.info(user_param);
-con.getConnection().then( conn => {
+conp.then( conn => {
     args.conn = conn ;
     const param = {...args, ...user_param} ;
     // console.log(param) ;

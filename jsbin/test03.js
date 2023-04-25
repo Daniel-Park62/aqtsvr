@@ -1,9 +1,12 @@
 
-const aa = () => {
-    return new Promise((resolve) => { return "ook"} );
+// const conp = require('./db/db_con1'); 
+
+async function main() {
+    const con = await require('./db/db_con1');
+    con.query("select code from tmaster").then(row => console.log(row[0])) ;
 }
 
-aa().then( console.log ) ;
+main() ;
 /*
 
 const { networkInterfaces } = require('os');

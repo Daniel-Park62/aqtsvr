@@ -211,10 +211,10 @@ module.exports = function (args) {
         else {
             let serr = '';
             await con.query("INSERT INTO TLOADDATA \
-                (TCODE, CMPID,O_STIME,STIME,RTIME, SRCIP,SRCPORT,DSTIP,DSTPORT,PROTO, URI,SEQNO,ACKNO,slen,rlen,SDATA,RDATA) \
+                (TCODE, O_STIME,STIME,RTIME, SRCIP,SRCPORT,DSTIP,DSTPORT,PROTO, URI,SEQNO,ACKNO,slen,rlen,SDATA,RDATA) \
                 values \
-                ( ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?) ",
-                [p_tcode, datas.seqno, datas.o_stime, datas.stime, datas.rtime, datas.srcip, datas.srcport, datas.dstip, datas.dstport, '0',
+                ( ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?) ",
+                [p_tcode,  datas.o_stime, datas.stime, datas.rtime, datas.srcip, datas.srcport, datas.dstip, datas.dstport, '0',
                     datas.uri, datas.seqno, datas.ackno, datas.slen,
                     datas.rdata.length, datas.sdata, datas.rdata])
                 .then(dt => {

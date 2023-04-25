@@ -8,7 +8,6 @@ const MAX_RESP_LEN = 1024 * 32;
 const PGNM = '[sendHttp]';
 
 const { Worker, workerData } = require('worker_threads');
-const ckMap = new Map();
 
 const aqttimeout = process.env.aqtHttpTimeOut || 5000;
 console.log("HttpTimeOut:", aqttimeout, " (set aqtHttpTimeOut=ms)");

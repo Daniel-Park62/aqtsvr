@@ -1,0 +1,79 @@
+#!/usr/bin/bash
+
+# AQTTYPE ( TMAX, HTTP ) 기본값 HTTP
+cd $AQTHOME
+
+function jobs_f1 {
+  echo `ps -ef |egrep "./(aqt_execMst|aqt_request)" |grep -v grep | awk '{printf "%d ",$2}'` ;
+}
+
+function jobs_f2 {
+  echo `ps -ef |egrep "node (aqt_execJob|aqt_resend)" |grep -v grep | awk '{printf "%d ",$2}'` ;
+}
+
+# tmax type start
+function start_f1 {
+  cd $AQTHOME/cbin ;
+  JOBS=$(jobs_f1) ;
+  if [ $1 == 'start' ] && [ ${#JOBS} -gt 0 ]; then
+    echo "이미 실행중입니다."; 
+    return ; 
+  fi
+  LOGF="${AQTLOG}/"`date +%Y%m%d`"_$$.rlog"
+
+  ./aqt_execMst.sh >/dev/null &
+  ./aqt_request >$LOGF 2>&1 &
+}
+
+function stop_f1 {
+  cd $AQTHOME/cbin ;
+  JOBS=$(jobs_f1) ;
+  if [ ${#JOBS} -gt 0 ]; then
+    kill ${JOBS} 2>/dev/null ;
+  fi
+}
+
+# http type start
+function start_f2 {
+  cd $AQTHOME/jsbin ;
+  JOBS=$(jobs_f2) ;
+  if [ $1 == 'start' ] && [ ${#JOBS} -gt 0 ]  ; then
+    echo "이미 실행중입니다."; 
+    return ; 
+  fi
+  LOGF1="${AQTLOG}/"`date +%Y%m%d`"_$$.jslog"
+  LOGF2="${AQTLOG}/"`date +%Y%m%d`rs"_$$.jslog"
+
+  node aqt_execJob >$LOGF1 2>&1 &
+  node aqt_resend >$LOGF2 2>&1 &
+
+}
+function stop_f2 {
+  cd $AQTHOME/cbin ;
+  JOBS=$(jobs_f2) ;
+  if [ ${#JOBS} -gt 0 ]; then
+    kill ${JOBS} 2>/dev/null ;
+  fi
+}
+
+case $1 in
+  start|restart|reload)
+    echo "deamon start";
+    if [ "${AQTTYPE}" == 'TMAX' ];then
+      start_f1 $1 ;
+    else
+      start_f2 $1 ;
+    fi
+    ;;
+  stop)
+    echo "Deamon stop"
+    if [ "$AQTTYPE" == 'TMAX' ];then
+      stop_f1 $1 ;
+    else
+      stop_f2 $1 ;
+    fi
+    ;;
+  *)
+    echo "$0 [start stop restart]"
+    ;;
+esac

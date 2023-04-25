@@ -31,12 +31,12 @@ AQT mq recv & tpcall
 #define LOGERROR(...)                                         \
   do                                                          \
   {                                                           \
-    LOGprint(stderr, 'E', __func__, __LINE__, ##__VA_ARGS__); \
+    LOGprint(stderr, 'E', __FILE__, __LINE__, ##__VA_ARGS__); \
   } while (0)
 #define LOGINFO(...)                                          \
   do                                                          \
   {                                                           \
-    LOGprint(stdout, 'I', __func__, __LINE__, ##__VA_ARGS__); \
+    LOGprint(stdout, 'I', __FILE__, __LINE__, ##__VA_ARGS__); \
   } while (0)
 
 static struct sigaction act;
@@ -132,8 +132,6 @@ int _Init(int argc, char *argv[])
   sigaction(SIGQUIT, &act, 0);
   sigaction(SIGTERM, &act, 0);
 
-  LOGINFO("** << START %s >> **",__FILE__);
-
   return (0);
 }
 
@@ -209,6 +207,7 @@ int main(int argc, char *argv[])
     closeDB();
     exit(0);
   }
+  LOGINFO("** << START %s >> **",__FILE__);
 
   char query[2048] = {
       0,

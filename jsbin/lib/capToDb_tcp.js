@@ -58,7 +58,7 @@ module.exports = function (args) {
     let endsw = 1;
     parser.on('packet', async function (packet) {
         if (args.maxcnt > 0 && args.maxcnt <= icnt) {
-            if (endsw) { endsw = 0; endprog();}
+            if (endsw) { endsw = 0; process.nextTick( endprog);}
             return ;
         }
 
@@ -177,14 +177,14 @@ module.exports = function (args) {
 
     });
 
-    parser.on('end', endprog) ;
+    parser.on('end', ()=> { setTimeout( endprog, 1000) } ) ;
     
 	async function insert_data(datas ) {
-			return await con.query("INSERT INTO TLOADDATA \
-			(TCODE, CMPID,O_STIME,STIME,RTIME, SRCIP,SRCPORT,DSTIP,DSTPORT,PROTO, URI,SEQNO,ACKNO,slen,rlen,SDATA,RDATA) \
+			return con.query("INSERT INTO TLOADDATA \
+			(TCODE, O_STIME,STIME,RTIME, SRCIP,SRCPORT,DSTIP,DSTPORT,PROTO, URI,SEQNO,ACKNO,slen,rlen,SDATA,RDATA) \
 			values \
-			( ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?) ;",
-			[args.tcode, datas.seqno, datas.o_stime, datas.stime, datas.rtime, datas.srcip, datas.srcport, datas.dstip, datas.dstport, '0',
+			( ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?) ;",
+			[args.tcode, datas.o_stime, datas.stime, datas.rtime, datas.srcip, datas.srcport, datas.dstip, datas.dstport, '0',
 				datas.dstport, datas.seqno, datas.ackno,  datas.slen,
 				datas.rdata.length , datas.sdata, datas.rdata])
 			.then( row => {
@@ -198,7 +198,7 @@ module.exports = function (args) {
 	}
 	
     async function endprog() {
-		console.log("end process start", child.spawnargs) ;
+		console.log("end process start") ;
         // myMap.forEach(async (datas, ky) => {
         for ( let [ky, datas ] of myMap ) {
             if ( ! datas.rdata.length  ) continue ;

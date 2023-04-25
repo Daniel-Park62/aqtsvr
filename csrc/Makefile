@@ -2,7 +2,7 @@ CC = gcc
 INC = -I${MARIADB}/include/mysql -I${TMAXDIR} -I. 
 
 CFLAGS = -m64 -O2 -g -Wall -W ${INC} 
-BDIR= ${AQTHOME}/bin
+BDIR= ${AQTHOME}/cbin
 TMAXDIR = /tmax
 MARIADB = /usr/local/mysql
 

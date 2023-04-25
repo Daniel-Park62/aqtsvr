@@ -5,10 +5,9 @@ const connection = {
   port: config.port,
   user: config.user,
   password: config.password,
-  database: config.database,
-  idleTimeout : 60,
-  acquireTimeout : 180000,
-  connectionLimit: 10
+  database: config.database
 } ;
 
-module.exports =  mariadb.createPool(connection) ;
+module.exports =  mariadb.createConnection(connection) ;
+  
+

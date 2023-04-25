@@ -6,7 +6,7 @@ const PGNM = '[capToDb]';
 
 let myMap = null;
 let myMap_s = null;
-let con = require('../db/db_con');
+let con ;
 // process.on('SIGTERM', endprog);
 
 process.on('warning', (warning) => {
@@ -20,6 +20,7 @@ module.exports = function (args) {
 
     con = args.conn;
     const patt1 = new RegExp(args.dstip);
+    const patt2 = new RegExp(args.dstport.length > 0 ? args.dstport : '.');
     const patt_svc = new RegExp(args.svcid);
 
     myMap = new Map();
@@ -35,6 +36,7 @@ module.exports = function (args) {
     const fs = require('fs');
     let dstobj;
     let ltype = 1;
+    let child = null ;
     icnt = 0;
     console.log("%s Start 테스트id(%s) 입력파일(%s)", PGNM, args.tcode, args.dstv);
     try {
@@ -99,8 +101,7 @@ module.exports = function (args) {
                 // console.log(PGNM,buffer.slice(ret.offset, ret.offset + 200).toString());
                 let ky = util.format('%s:%d:%d', srcip, ret.info.srcport, Math.floor(ret.info.ackno / 100));
                 let sky = util.format('%s:%d:%s:%d', srcip, ret.info.srcport, dstip, ret.info.dstport);
-
-                if (patt1.test(dstip) 
+                if (patt1.test(dstip) && patt2.test(ret.info.dstport.toString() ) 
                     && /^(GET|POST|DELETE|PUT|PATCH)\s/.test(buffer.slice(ret.offset, ret.offset + 10).toString())) {
                     // let sdata = buffer.slice(ret.offset, ret.offset + datalen);
                     let sdata = buffer.slice(ret.offset);
@@ -296,14 +297,14 @@ module.exports = function (args) {
             process.stdout.write(datas.sdata);
             return ;
         }
-        
-        return await con.query("INSERT INTO TLOADDATA \
-            (TCODE, CMPID,O_STIME,STIME,RTIME, SRCIP,SRCPORT,DSTIP,DSTPORT,PROTO, URI,SEQNO,ACKNO \
-                ,RCODE,RHEAD,slen,rlen,SDATA,RDATA) \
+
+        return con.query("INSERT INTO TLOADDATA \
+            (TCODE, O_STIME,STIME,RTIME, SRCIP,SRCPORT,DSTIP,DSTPORT,PROTO, URI,SEQNO,ACKNO \
+                ,METHOD,RCODE,RHEAD,slen,rlen,SDATA,RDATA) \
             values \
             ( ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?) ",
-            [datas.tcode, datas.seqno, datas.o_stime, datas.stime, datas.rtime, datas.srcip, datas.srcport, datas.dstip, datas.dstport, '1',
-            datas.uri, datas.seqno, datas.ackno, datas.rcode, datas.rhead, datas.slen,
+            [datas.tcode,  datas.o_stime, datas.stime, datas.rtime, datas.srcip, datas.srcport, datas.dstip, datas.dstport, '1',
+            datas.uri, datas.seqno, datas.ackno, datas.method, datas.rcode, datas.rhead, datas.slen,
             datas.rdata.length, datas.sdata, datas.rdata])
             .then(dt => {
                 icnt++;

@@ -4,20 +4,13 @@ const  { parentPort, threadId,  workerData } = require('worker_threads');
 const moment = require('moment');
 const iconv = require('iconv-lite');
 const http = require('http');
-const mariadb = require('mariadb');
-const config = require('../db/dbinfo').real;
 moment.prototype.toSqlfmt = function (ms) {
   return this.format('YYYY-MM-DD HH:mm:ss.' + ms);
 };
 
 let con ;
 (async ()=> {
-  con = await mariadb.createConnection( { host: config.host,
-    port: config.port,
-    user: config.user,
-    password: config.password,
-    database: config.database }
-  );
+  con = await require('../db/db_con1');
   // console.log(threadId,"db connected") ;
   process.on('SIGTERM', con.end );
   parentPort.postMessage({ready:1}) ;
@@ -38,7 +31,7 @@ parentPort.on('message', (pkey) => {
   " if(ifnull(m.tport2,IFNULL(c.tport,0))>0, ifnull(m.tport2,c.tport), dstport) dstport,uri,method,sdata, rlen " +
   "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
   "where t.pkey = ? ", [pkey])
-  .then( rdata =>  dataHandle(rdata[0]) ) 
+  .then( rdata =>  dataHandle(rdata[0]) ) ;
   
 });
 

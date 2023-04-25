@@ -29,6 +29,8 @@ cd /usr/local/mysql
 ./mysqld_safe --user=mysql &
 
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'dawinit1';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY '';
+
 SELECT Host,User,plugin,authentication_string FROM mysql.user;
 
 CREATE USER 'aqtdb'@'%' IDENTIFIED BY 'Dawinit1!';
@@ -43,7 +45,7 @@ GRANT SELECT, DELETE, INSERT, EVENT, UPDATE, TRIGGER  ON `aqtdb2`.* TO 'aqtdb'@'
 [client]
 port            = 3306
 socket          = /tmp/mysql.sock
-default-character-set   = utf8
+default-character-set   = utf8mb4
 
 [mysqld]
 datadir= /db/data
@@ -53,13 +55,11 @@ skip-host-cache
 skip-name-resolve
 
 autocommit = 1
-character-set-server    = utf8
-collation-server        = utf8_general_ci
+character-set-server    = utf8mb4
+collation-server        = utf8mb4_unicode_ci
 default-storage-engine = INNODB
 event_scheduler = ON
 innodb_buffer_pool_size = 2G
-innodb-buffer-pool-instances = 8
-innodb_file_per_table = 1
 innodb_flush_log_at_trx_commit  = 0
 
 innodb_purge_threads = 1
@@ -79,9 +79,11 @@ transaction_isolation = READ-COMMITTED
 [mysqldump]
 quick
 max_allowed_packet = 700M
+default-character-set   = utf8mb4
 
 [mysql]
 no-auto-rehash
+default-character-set   = utf8mb4
 
 [mysqlhotcopy]
 interactive-timeout
@@ -94,7 +96,7 @@ pid-file=/db/log/mariadb.pid
 
 ==================
 Unzip the binary archive to any directory you wanna install Node, I use /usr/local/lib/nodejs
- VERSION=v10.15.0
+ VERSION=v18.16.0
  DISTRO=linux-x64
  sudo mkdir -p /usr/local/lib/nodejs
  sudo tar -xJvf node-$VERSION-$DISTRO.tar.xz -C /usr/local/lib/nodejs 

@@ -14,12 +14,12 @@
 #define L_MAIN_MSG 80
 
 #define TP_ENV_FILE "./tmax.env"
-#define LOG_PATH "./logs"
+#define LOG_PATH "../logs"
 
 #define VNAME_SZ 128
 #define FNAME_SZ 256
 
-#define DBHOST "192.168.0.27"
+#define DBHOST NULL
 #define DBUSER "aqtdb"
 #define DBNAME "aqtdb2"
 #define DBPASS "Dawinit1!"
