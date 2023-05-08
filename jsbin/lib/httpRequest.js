@@ -4,6 +4,7 @@ const  { parentPort, threadId,  workerData } = require('worker_threads');
 const moment = require('moment');
 const iconv = require('iconv-lite');
 const http = require('http');
+const PGNM = '[httpRequest]';
 moment.prototype.toSqlfmt = function (ms) {
   return this.format('YYYY-MM-DD HH:mm:ss.' + ms);
 };
@@ -121,13 +122,19 @@ function dataHandle(rdata ) {
     // res.once('readable', () => {
     //   stime = moment() ;
     // }) ;
+
+    res.on('timeout', () => {
+      // console.log(PGNM,'socket timeout');
+      res.emit('error', new Error('Client timeout')) ;
+      res.end();
+    });
     res.on('data', function (chunk) {
       recvData.push(chunk);
     });
     res.on('end', () => {
       // console.log("* res end *",rdata.uri) ;
       if (param.dbskip) {
-        console.log("skip ok",rdata.uri)
+        // console.log("skip ok",rdata.uri)
         parentPort.postMessage({ready:1}) ;
         return;
       }
@@ -144,27 +151,33 @@ function dataHandle(rdata ) {
        con.query("UPDATE ttcppacket SET \
                     rdata = ?, sdata = ?, stime = ?, rtime = ?,  elapsed = ?, rcode = ? ,rhead = ?, rlen = ? ,cdate = now() where pkey = ? "
         , [rDatas, Buffer.from(new_shead), stime.toSqlfmt(stimem), rtime.toSqlfmt(rtimem), svctime, res.statusCode, resHs, rsz, rdata.pkey])
-          .catch(err => console.error(PGNM, 'update error:', rdata.pkey, err) ) 
+          .catch(err => {
+            console.error(PGNM, 'update error:', rdata.pkey, err);
+            parentPort.postMessage({err:1});
+           }) 
           .then(parentPort.postMessage({ok:1})) ;
     });
   });
   if (pi > 0 && /POST|PUT|DELETE|PATCH/.test(rdata.method)) {
     const sdata = sdataStr.slice(pi + 4);
-    // console.log(PGNM,sdata.toString()) ;
+
     req.write(sdata);
     new_shead += '\r\n' + sdata.toString();
   }
   req.on('error', (e) => {
-    console.error(PGNM, 'request: ', e.message, e.errno);
+    // console.error(PGNM, e.message, e.errno);
     const rtime = moment();
     const rtimem = Math.ceil(process.hrtime()[1] / 1000);
 
-    const svctime = moment.duration(rtime.diff(stime)) / 1000.0;
+    if (rtimem < stimem && stime.isSameOrAfter(rtime, 'second')) rtime.add('1', 's');
+    const svctime = moment.duration(rtime.diff(stime)).asSeconds() ;
 
     if (!param.dbskip)
       con.query("UPDATE ttcppacket SET \
                       sdata = ?,  stime = ?, rtime = ?,  elapsed = ?, rcode = ? , rhead = ? , cdate = now() where pkey = ?"
         , [Buffer.from(new_shead), stime.toSqlfmt(stimem), rtime.toSqlfmt(rtimem), svctime, 999, e.message, rdata.pkey])
+        .catch(err =>   console.error(PGNM,'update error:', err));
+
         ;
     parentPort.postMessage({err:1}) ;
   });

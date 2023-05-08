@@ -14,7 +14,7 @@ useradd -g mysql -d /home/mysql/ -m -s /bin/bash  -c "mariadb USER" mysql
 
 passwd mysql <-  dawinit1
 
-chown -R mysql.mysql mariadb-10.5.9-linux-x86_64
+chown -R mysql:mysql mariadb-10.5.9-linux-x86_64
 
 mkdir -p /db/data /db/log
 
@@ -42,15 +42,14 @@ GRANT SELECT, DELETE, INSERT, EVENT, UPDATE, TRIGGER  ON `aqtdb2`.* TO 'aqtdb'@'
 /usr/local/mysql/support-files/mysql.server start
 
 ##########  my.cnf
-[client]
-port            = 3306
-socket          = /tmp/mysql.sock
-default-character-set   = utf8mb4
 
-[mysqld]
-datadir= /db/data
+[client-server]
 port            = 3306
 socket          = /tmp/mysql.sock
+#default-character-set   = utf8mb4
+
+[mariadbd]
+datadir = /db/data
 skip-host-cache
 skip-name-resolve
 
@@ -76,7 +75,7 @@ table_open_cache = 2048
 tmp_table_size = 64M
 transaction_isolation = READ-COMMITTED
 
-[mysqldump]
+[mariadb-dump]
 quick
 max_allowed_packet = 700M
 default-character-set   = utf8mb4
@@ -85,14 +84,11 @@ default-character-set   = utf8mb4
 no-auto-rehash
 default-character-set   = utf8mb4
 
-[mysqlhotcopy]
-interactive-timeout
 
-[mysqld_safe]
+[mariadb_safe]
 open-files-limit = 8192
 log-error=/db/log/mariadb.log
 pid-file=/db/log/mariadb.pid
-
 
 ==================
 Unzip the binary archive to any directory you wanna install Node, I use /usr/local/lib/nodejs

@@ -337,7 +337,7 @@ int main(int argc, char *argv[])
                         " FROM ttcppacket t USE INDEX(tcode) join tservice s on (t.uri = s.svcid and s.appid ='') "
                         " WHERE t.tcode = '%s'  %s %s ORDER BY %s %s ",
            (_mtype == 3 ? "t.cmpid" : "t.pkey"),
-           _test_code, cond_svcid, cond_etc, (_test_code[0] == 'E' ? "rand()" : "t.o_stime"), cond_limit);
+           _test_code, cond_svcid, cond_etc, (_test_code[0] == 'Z' ? "rand()" : "t.o_stime"), cond_limit);
   LOGINFO("%s", query);
 
   if (mysql_real_query(conn, query, strlen(query)))

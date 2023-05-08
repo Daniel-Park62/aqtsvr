@@ -16,6 +16,7 @@ let icnt = 0;
 module.exports = function (args) {  
     con = args.conn ;
     const patt1 = new RegExp(args.dstip);
+    const patt2 = new RegExp(args.dstport.length > 0 ? args.dstport : '.');
     const patt_svc = new RegExp(args.svcid);
     const myMap = new Map();
     const myMap_s = new Map();
@@ -94,7 +95,7 @@ module.exports = function (args) {
                 let ky = util.format('%s:%d:%d', srcip, ret.info.srcport, ret.info.ackno);
                 // console.log(PGNM,'Decoding TCP ...', dstip, ret.info.dstport);
                 
-                if (patt1.test(dstip) && ret.info.dstport == args.dstport) {
+                if (patt1.test(dstip) && patt2.test(ret.info.dstport.toString() )  ) {
                     // console.log(PGNM,srcip, dstip, ret.info.dstport);
                     // let sdata = buffer.slice(ret.offset, ret.offset + datalen);
                     if (myMap_s.has(ky) && myMap.has(myMap_s.get(ky))) {

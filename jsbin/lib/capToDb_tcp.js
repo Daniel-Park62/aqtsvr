@@ -17,6 +17,7 @@ module.exports = function (args) {
 
     con = args.conn ;
     const patt1 = new RegExp(args.dstip) ;
+    const patt2 = new RegExp(args.dstport.length > 0 ? args.dstport : '.');
 
     const myMap = new Map();
     const myMap_s = new Map();
@@ -99,7 +100,7 @@ module.exports = function (args) {
                 // console.log(PGNM,buffer.slice(ret.offset, ret.offset + 200).toString());
                 let ky = util.format('%s:%d:%d', srcip, ret.info.srcport, ret.info.ackno);
 
-                if (patt1.test(dstip)) {
+                if (patt1.test(dstip) && patt2.test(ret.info.dstport.toString() )) {
                     // let sdata = buffer.slice(ret.offset, ret.offset + datalen);
                     if (myMap_s.has(ky)  && myMap.has(myMap_s.get(ky) ) ) {
                         let datas = myMap.get(myMap_s.get(ky)) ;

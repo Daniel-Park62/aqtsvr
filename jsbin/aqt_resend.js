@@ -44,15 +44,21 @@ async function main() {
 }
 
 function thread_start() {
-  const aqttimeout = process.env.aqtHttpTimeOut || 5000;
+  const aqttimeout = process.env.AqtTimeOut || 30000;
   const wdata = { workerData: { dbskip: false, aqttimeout } };
+  let TYPEF ;
+  if (process.env.AQTTYPE === 'TCP')
+    TYPEF = '/lib/tcpRequest.js';
+  else
+    TYPEF = '/lib/httpRequest.js';
+
   
   for (let i = 0; i < 5; i++) {
 
     // const wdata =  [param.tcode, param.etc,  `${i},${pcnt}`  ];
     // console.log(PGNM, wdata) ;
     // msgs  += ':'+vlimit;
-    const wkthread = new Worker(__dirname + '/lib/httpRequest.js', wdata)
+    const wkthread = new Worker(__dirname + TYPEF, wdata)
       .on('exit', () => {
         const i = threads.findIndex(w => w.wkthread == wkthread);
         if (i !== -1) threads.splice(i, 1);

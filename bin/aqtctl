@@ -15,9 +15,13 @@ function jobs_f2 {
 function start_f1 {
   cd $AQTHOME/cbin ;
   JOBS=$(jobs_f1) ;
-  if [ $1 == 'start' ] && [ ${#JOBS} -gt 0 ]; then
-    echo "이미 실행중입니다."; 
-    return ; 
+  if  [ ${#JOBS} -gt 0 ]  ; then
+    if [ $1 == 'start' ] ; then
+      echo "이미 실행중입니다."; 
+      return ; 
+    else
+      kill ${JOBS} 2>/dev/null ;
+    fi
   fi
   LOGF="${AQTLOG}/"`date +%Y%m%d`"_$$.rlog"
 
@@ -30,6 +34,8 @@ function stop_f1 {
   JOBS=$(jobs_f1) ;
   if [ ${#JOBS} -gt 0 ]; then
     kill ${JOBS} 2>/dev/null ;
+  else
+    echo "중지할 작업이 없습니다.";
   fi
 }
 
@@ -37,9 +43,13 @@ function stop_f1 {
 function start_f2 {
   cd $AQTHOME/jsbin ;
   JOBS=$(jobs_f2) ;
-  if [ $1 == 'start' ] && [ ${#JOBS} -gt 0 ]  ; then
-    echo "이미 실행중입니다."; 
-    return ; 
+  if  [ ${#JOBS} -gt 0 ]  ; then
+    if [ $1 == 'start' ] ; then
+      echo "이미 실행중입니다."; 
+      return ; 
+    else
+      kill ${JOBS} 2>/dev/null ;
+    fi
   fi
   LOGF1="${AQTLOG}/"`date +%Y%m%d`"_$$.jslog"
   LOGF2="${AQTLOG}/"`date +%Y%m%d`rs"_$$.jslog"
@@ -53,6 +63,8 @@ function stop_f2 {
   JOBS=$(jobs_f2) ;
   if [ ${#JOBS} -gt 0 ]; then
     kill ${JOBS} 2>/dev/null ;
+  else
+    echo "중지할 작업이 없습니다.";
   fi
 }
 

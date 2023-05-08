@@ -5,10 +5,6 @@ const PGNM = '[aqtExecJob]';
 
 const moment = require('moment');
 const con = require('./db/db_con'); 
-
-const http = require('http');
-const { resolve } = require('path');
-const { rejects } = require('assert');
 moment.prototype.toSqlfmt = function () {
   return this.format('YYYY-MM-DD HH:mm:ss.SSSSSS');
 };
@@ -62,14 +58,14 @@ function sendData(row) {
         con.query("UPDATE texecjob set resultstat = 3, msg = 'Origin ID 는 테스트 불가합니다.', endDt = now() where pkey = ?", [row.pkey]);
         return;
       }
-      const sendhttp = require('./lib/sendHttp2');
+      const sendMain = require('./lib/sendMain');
       console.log(PGNM, "pid=>", process.pid);
-      let qstr = "UPDATE texecjob set resultstat = 2, msg = concat(?,now(),':',?,'\r\n' ), endDt = now() where pkey = " + row.pkey;
+      
       let param = {
         tcode: row.tcode, cond: row.etc, conn: await con.getConnection(), tnum:row.tnum
         , limit: row.limits, interval: row.reqnum, loop: row.repnum , dbskip: row.dbskip == '1', jobId: row.pkey
       };
-      new sendhttp(param);
+      new sendMain(param);
     })
     .catch(err => {
       console.log(PGNM, err);

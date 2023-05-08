@@ -5,12 +5,12 @@
 "use strict";
 
 const MAX_RESP_LEN = 1024 * 32;
-const PGNM = '[sendHttp]';
+const PGNM = '[sendMain]';
 
 const { Worker, workerData } = require('worker_threads');
 
-const aqttimeout = process.env.aqtHttpTimeOut || 5000;
-console.log("HttpTimeOut:", aqttimeout, " (set aqtHttpTimeOut=ms)");
+const aqttimeout = process.env.AqtTimeOut || 30000;
+console.log("AqtTimeOut:", aqttimeout, " (set AqtTimeOut=ms)");
 
 let con = null;
 let dbskip = false;
@@ -22,26 +22,27 @@ module.exports = function (param) {
   let tcnt = 0;
   let cnt = 0;
   let ucnt = 0;
+  let ecnt = 0;
   let condi = param.cond > ' ' ? "and (" + param.cond + ")" : "";
   let vlimit = param.limit > ' ' ? ' LIMIT ' + param.limit : "";
-
+  let orderby = param.tcode.substr(0,1) === 'Z' ? ' order by rand() ' : ' order by o_stime ' ;
   const threads = new Array();
-  let tpos = 0;
+  
   dbskip = param.dbskip;
   thread_start(param);
   const qstr = "SELECT COUNT(*) cnt FROM ( select 1 from ttcppacket t where tcode = ? " + condi + vlimit + ") x";
 
   con.query(qstr, [param.tcode])
     .then(row => {
-      tcnt = row[0].cnt;
-      console.log("%s Start 테스트id(%s) 작업수(%d) cond(%s) limit(%s) data건수 (%d) pid(%d)"
-      ,PGNM, param.tcode, param.tnum, condi, vlimit, tcnt, process.pid);
+      tcnt = Number(row[0].cnt);
+      console.log("%s Start 테스트id(%s) 작업수(%d) cond(%s) limit(%s) data건수(%d) pid(%d)"
+        , PGNM, param.tcode, param.tnum, condi, vlimit, tcnt, process.pid);
     })
-    .catch(err => console.log(PGNM, qstr,err));
+    .catch(err => console.log(PGNM, qstr, err));
 
   const qstream = con.queryStream("SELECT t.pkey,o_stime " +
     "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
-    "where t.tcode = ? " + condi + " order by o_stime  " + vlimit, [param.tcode]);
+    "where t.tcode = ? " + condi + orderby + vlimit, [param.tcode]);
 
   qstream.on("error", err => {
     console.log(PGNM, err); //if error
@@ -66,16 +67,16 @@ module.exports = function (param) {
           th.wkthread.postMessage(row.pkey);
         }
         qstream.resume();
-      } 
+      }
     }, 50);
 
   });
 
   qstream.on("end", () => {
-    console.log(PGNM, param.tcode, "*** read ended ***");
+    console.log(PGNM, param.tcode,"*Jobid:" + param?.jobId, "*** read ended ***");
 
     let ival = setInterval(async () => {
-      for (const v of threads) { if (!v.busy) await v.wkthread.terminate() } 
+      for (const v of threads) { if (!v.busy) await v.wkthread.terminate() }
       // console.log(PGNM, "threads :", threads.length);
       if (threads.length == 0) {
         clearInterval(ival);
@@ -87,9 +88,9 @@ module.exports = function (param) {
             await con.query('call sp_summary(?)', [param.tcode]);
 
           if (param.hasOwnProperty('jobId'))
-            await con.query("UPDATE texecjob set resultstat = 2, msg = concat(msg,now(),': ',?,'\r\n' ), endDt = now() where pkey = ? ",
+            await con.query("UPDATE texecjob set resultstat = 2, msg = concat(ifnull(msg,''),now(),': ',?,'\r\n' ), endDt = now() where pkey = ? ",
               [cnt + " 건 수행", param.jobId]);
-          console.log(`${cnt} read, ${ucnt} update`)
+          console.log(`${cnt} read, ${ucnt} update, ${ecnt} error`) ;
           param.exit && process.exit(0);
         }
       }
@@ -99,6 +100,11 @@ module.exports = function (param) {
 
 
   function thread_start(param) {
+    let TYPEF ;
+    if (process.env.AQTTYPE === 'TCP')
+      TYPEF = '/tcpRequest.js';
+    else
+      TYPEF = '/httpRequest.js';
 
     let msgs = " 총 " + tcnt + '건 송신 ' + (param.dbskip ? '(no Update)' : '') + (param.loop > 1 ? param.loop + " 회 반복" : '');
     const wdata = { workerData: { dbskip: param.dbskip, aqttimeout } };
@@ -108,7 +114,7 @@ module.exports = function (param) {
       // const wdata =  [param.tcode, param.etc,  `${i},${pcnt}`  ];
       // console.log(PGNM, wdata) ;
       // msgs  += ':'+vlimit;
-      const wkthread = new Worker(__dirname + '/httpRequest.js', wdata)
+      const wkthread = new Worker(__dirname + TYPEF, wdata)
         .on('exit', () => {
           const i = threads.findIndex(w => w.wkthread == wkthread);
           if (i !== -1) threads.splice(i, 1);
@@ -125,12 +131,13 @@ module.exports = function (param) {
       });
       wkthread.on('message', (dat) => {
         // console.log(PGNM, "Thread data ", dat);
-        dat?.ok && ucnt++;
         if (dat?.svCook) {
-          threads.forEach( t => t.wkthread.postMessage(dat)) ;
-          return ;
+          threads.forEach(t => t.wkthread.postMessage(dat));
+          return;
         }
-        for (const w of  threads) { if ( w.wkthread == wkthread ) w.busy = 0;}
+        dat?.ok && ucnt++;
+        dat?.err && ecnt++;
+        for (const w of threads) { if (w.wkthread == wkthread) {w.busy = 0; break;} }
         
       });
 
