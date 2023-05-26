@@ -8,7 +8,11 @@ const connection = {
   database: config.database,
   idleTimeout : 60,
   acquireTimeout : 180000,
-  connectionLimit: 10
+  connectionLimit: 10,
+  bigIntAsNumber: true,
+  insertIdAsNumber : true,
+  decimalAsNumber : true
+
 } ;
 
 module.exports =  mariadb.createPool(connection) ;
