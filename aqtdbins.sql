@@ -1,15 +1,38 @@
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET NAMES utf8 */;
-/*!50503 SET NAMES utf8mb4 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+
+CREATE DATABASE IF NOT EXISTS `aqtdb2` ;
+USE `aqtdb2`;
+
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'dawinit1';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY 'dawinit1';
+
+CREATE OR REPLACE USER 'aqtdb'@'%' IDENTIFIED BY 'Dawinit1!';
+CREATE OR REPLACE USER 'aqtdb'@'localhost' IDENTIFIED BY 'Dawinit1!';
+GRANT EXECUTE,SELECT, DELETE, INSERT, CREATE VIEW, EVENT, UPDATE, TRIGGER  ON `aqtdb2`.* TO 'aqtdb'@'%';
+GRANT EXECUTE,SELECT, DELETE, INSERT, CREATE VIEW, EVENT, UPDATE, TRIGGER  ON `aqtdb2`.* TO 'aqtdb'@'localhost';
+flush PRIVILEGES ;
+
+CREATE TABLE IF NOT EXISTS `tconfig` (
+  `id` int(11) NOT NULL DEFAULT 1,
+  `pass1` varchar(50) DEFAULT NULL COMMENT '테스트admin passwd',
+  `TCODE` varchar(20) DEFAULT NULL,
+  `encval` varchar(20) DEFAULT NULL COMMENT 'default encoding',
+  `proto` char(1) DEFAULT '0',
+  `diffc` varchar(200) DEFAULT 'AND (a.rcode <> b.rcode or a.rcode > 399 or b.rcode > 399)',
+  `pjtnm` VARCHAR(200) ,
+  `COL1` VARCHAR(50) ,
+  `COL2` VARCHAR(50) ,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB ;
+
+INSERT INTO `tconfig` (`id`, `pass1`, `TCODE`,proto,encval, pjtnm) VALUES
+	(1, 'testadmin', NULL, '0','MS949', '리눅스설치 maria');
 
 DELIMITER //
 CREATE EVENT `ev_cnt_upd` ON SCHEDULE EVERY 1 HOUR STARTS '2021-02-01 18:07:01' ON COMPLETION PRESERVE DISABLE COMMENT '서비스별 총누적건수 업데이트' DO BEGIN
 
 	DECLARE done INT DEFAULT FALSE;
 	DECLARE VCODE VARCHAR(50) ;
-	DECLARE cur CURSOR FOR SELECT TCODE FROM ttcppacket WHERE cdate > DATE_ADD(NOW(), interval 1 HOUR) ;
+	DECLARE cur CURSOR FOR SELECT TCODE FROM texecjob WHERE startdt > DATE_ADD(NOW(), INTERVAL -1 day) ;
 	
 	DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
 
@@ -53,8 +76,11 @@ main: BEGIN
 	
    DECLARE exit handler for SQLEXCEPTION
     BEGIN
-        ROLLBACK;        
-        SELECT  CONCAT('SQL 실행중 오류발생!! ',CHAR(10),  cond) ;
+        ROLLBACK;   
+		  get diagnostics condition 1
+                @rs = RETURNED_SQLSTATE , @mt = MESSAGE_TEXT;
+
+        SELECT  CONCAT('SQL 실행중 오류발생!! ',@mt, CHAR(10),  cond) ;
         UPDATE texecjob SET resultStat = 3, msg = 'SQL 실행중 오류발생!!', enddt = NOW() WHERE pkey = v_pkey ;
     END;
 
@@ -63,10 +89,6 @@ main: BEGIN
 	SET @SRC = src_code ;
 	SET @DST = dst_code ;
 	SET @NUM = numbyuri ;
-	SET @SQLT = CONCAT ( 
-	' SELECT count(1) into @NN 
-	FROM ttcppacket A JOIN ( SELECT CMPID FROM ttcppacket WHERE TCODE = ? ' ,cond  ,
-	 ') B ON (A.CMPID = B.CMPID ) WHERE TCODE = ? ' ) ;
 	 
 	INSERT INTO texecjob (jobkind, tdesc, tcode,  in_file, resultStat, etc, tnum ,reqnum, startdt)
 	 VALUES ( 3, '전문복제작업', @DST, @SRC,  1, cond, 1, @NUM, NOW() ) ;
@@ -79,23 +101,24 @@ main: BEGIN
 		UPDATE texecjob SET resultStat = 3, msg = '이전 복사작업된 데이터가 있습니다.', enddt = NOW() WHERE pkey = v_pkey ;
 		leave main;
 	END if ;
-*/
 	UPDATE ttcppacket d, ttcppacket s SET d.rcode = 0 , d.rhead = NULL, d.errinfo = NULL ,d.slen = s.slen, d.rlen = 0, d.sdata = s.sdata, d.rdata = NULL , d.stime = s.stime, d.rtime = s.rtime, d.elapsed = 0
 	WHERE d.tcode = @DST AND s.tcode = @SRC AND d.cmpid = s.cmpid ;
 
 	IF ROW_COUNT() > 0 THEN 
 		SELECT CONCAT( ROW_COUNT(), ' 건 수정되었음', CHR(13),CHR(10)) INTO v_msg_u ;
 	END IF ;
+*/
+
 	if numbyuri = 0 then
 	   SET @NUM = 9999999 ;
 	END if ;
 	SET @SQLT = CONCAT ( 
 	' INSERT into ttcppacket 
-	( tcode, cmpid, o_stime, stime, rtime,  elapsed, srcip, srcport, dstip, dstport, proto, method, uri, seqno, ackno, rcode,rhead, slen, rlen, sdata )
-	SELECT ? ,cmpid, o_stime, stime, rtime,  elapsed, srcip, srcport, dstip, dstport, proto, method, uri, seqno, ackno, 0, "미수행",slen, 0, sdata
+	( tcode, cmpid, o_stime, stime, rtime,  elapsed, srcip, srcport, dstip, dstport, proto, method, uri, seqno, ackno, rcode,rhead, slen, rlen, sdata, rdata ,errinfo)
+	SELECT ? ,cmpid, o_stime, stime, rtime,  elapsed, srcip, srcport, dstip, dstport, proto, method, uri, seqno, ackno, 0, "미수행",slen, 0, sdata, rdata, errinfo
 	FROM ( SELECT ROW_NUMBER() OVER (PARTITION BY URI) rno, t.* FROM ttcppacket t WHERE TCODE = ? ', cond,
-	       ' and not exists (select 1 from ttcppacket where tcode = ? and cmpid = t.cmpid  ) ) x 
-	WHERE rno <= ? '  ) ;
+	       '  ) x 
+	WHERE not exists (select 1 from ttcppacket where tcode = ? and cmpid = x.cmpid  ) and rno <= ? '  ) ;
 	
 	EXECUTE IMMEDIATE @SQLT USING @DST, @SRC, @DST, @NUM  ;
 
@@ -142,6 +165,83 @@ END//
 DELIMITER ;
 
 DELIMITER //
+CREATE PROCEDURE `sp_loaddata2`(
+	IN `p_src` VARCHAR(50),
+	IN `p_dst` VARCHAR(50),
+	IN `p_cond` VARCHAR(150),
+	IN `p_ecnt` INT
+)
+BEGIN
+
+DECLARE v_msg VARCHAR(100) ;
+DECLARE icnt INT DEFAULT 0;
+DECLARE done INT DEFAULT FALSE ;
+DECLARE cdate DATETIME DEFAULT NOW();
+DECLARE s_uri TYPE of tloaddata.uri DEFAULT '';
+
+
+DECLARE cur1 CURSOR FOR
+	SELECT uri FROM tloaddata where tcode like p_src GROUP BY uri ;
+	
+DECLARE cur2 CURSOR FOR 
+	SELECT pkey, o_stime, rtime, elapsed, srcip, srcport, dstip, dstport, proto, method, 
+			seqno, ackno, slen, rlen, sdata, rdata, errinfo,rhead, uf_getapp(dstip,dstport) appid
+	 FROM vtloaddata t
+	WHERE uri = s_uri
+	  AND NOT EXISTS (SELECT 1 FROM ttcppacket WHERE tcode = p_dst AND cmpid = t.pkey)
+	ORDER BY o_stime desc
+	LIMIT p_ecnt ;
+	
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET done := TRUE ;
+
+SET @SQLT = CONCAT ( 
+	'create or REPLACE VIEW VTLOADDATA AS
+	  SELECT t.* FROM TLOADDATA t  WHERE ', if (p_src = '%' ,'true', CONCAT('TCODE = \'',p_src,'\'') ) , p_cond ) ; 
+
+-- SELECT @SQLT ;
+EXECUTE IMMEDIATE @SQLT   ;
+
+if (p_ecnt = 0) then set p_ecnt = 9999999;  END if ;
+
+OPEN cur1 ;
+
+readuri: LOOP
+	FETCH cur1 INTO s_uri ;
+	if done then leave readuri ; 	END if ;
+	if (p_ecnt > 0 and (SELECT COUNT(1) FROM ttcppacket WHERE tcode = p_dst AND uri = s_uri) >= p_ecnt ) then ITERATE readuri; END if ;
+	
+	OPEN cur2 ;
+	BEGIN 
+		DECLARE vrec ROW TYPE of cur2 ;
+		insloop: LOOP
+			fetch cur2 INTO vrec ;
+			if done then leave insloop ; END if ;
+			INSERT INTO ttcppacket ( tcode, cmpid, appid, o_stime, stime, rtime, elapsed, srcip, srcport, dstip, dstport, proto, method, 
+											 uri, seqno, ackno, slen, rlen, sdata, rdata, errinfo	,rhead	)
+								VALUES (p_dst, vrec.pkey, vrec.appid, vrec.o_stime, vrec.o_stime, vrec.rtime, vrec.elapsed, vrec.srcip, vrec.srcport, 
+									vrec.dstip, vrec.dstport, vrec.proto, vrec.method, 
+									s_uri, vrec.seqno, vrec.ackno, vrec.slen, vrec.rlen, vrec.sdata, vrec.rdata, vrec.errinfo	,vrec.rhead	) ;
+			SET icnt = icnt + 1;
+		END loop ;
+	END;
+	close cur2;
+	SET done := FALSE ;
+	
+END LOOP ;
+		
+close cur1 ;
+
+SELECT CONCAT( format(icnt,0), ' 건 복제되었음:', p_dst ) INTO v_msg ;
+/*	
+	INSERT INTO texecjob (jobkind, tdesc, tcode,  in_file, resultStat, etc, tnum ,reqnum, startdt, enddt, msg)
+	 VALUES ( 3, '전문생성작업', p_dst, p_src,  2, p_cond, 1, p_ecnt, cdate,NOW(), v_msg ) ;
+*/	 
+	 SELECT v_msg ;
+	
+END//
+DELIMITER ;
+
+DELIMITER //
 CREATE PROCEDURE `sp_summary`(
 	IN `in_tcode` VARCHAR(50)
 )
@@ -164,6 +264,7 @@ BEGIN
 			T.scnt = ifnull(summ.scnt,0),
 			T.fcnt = ifnull(summ.fcnt,0)
 		WHERE t.code like in_tcode  ;
+   COMMIT;
 		
 	UPDATE tlevel l, ( 
 		SELECT lvl, COUNT(DISTINCT URI ) svc_cnt, COUNT(1)  data_cnt, SUM(if(sflag='1',1,0)) scnt
@@ -178,10 +279,10 @@ BEGIN
 	CALL sp_insService(in_tcode) ;
  
 	UPDATE tservice l, ( 
-		SELECT uri, uf_getapp(dstip,dstport) appid, COUNT(1 ) cnt
+		SELECT uri, appid, COUNT(1 ) cnt
 		 from  ttcppacket , tmaster 
 		 WHERE TCODE =  CODE AND LVL > '0'
-		 GROUP BY uri, uf_getapp(dstip,dstport) 
+		 GROUP BY uri, appid 
 	) s
 	SET l.cumcnt  = s.cnt
 	WHERE l.svcid = s.uri AND l.appid = s.appid ;
@@ -232,23 +333,16 @@ CREATE TABLE IF NOT EXISTS `tapphosts` (
   `thost` varchar(50) NOT NULL,
   `tport` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`pkey`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8 COMMENT='application 호스트등록';
+) ENGINE=InnoDB COMMENT='application 호스트등록';
 
 CREATE TABLE IF NOT EXISTS `tapplication` (
   `appid` varchar(50) NOT NULL,
   `appnm` varchar(60) DEFAULT NULL,
   `manager` varchar(50) DEFAULT NULL COMMENT '담당자',
   PRIMARY KEY (`appid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='테스트대상 application';
+) ENGINE=InnoDB  COMMENT='테스트대상 application';
 
-CREATE TABLE IF NOT EXISTS `tconfig` (
-  `id` int(11) NOT NULL DEFAULT 1,
-  `pass1` varchar(50) DEFAULT NULL COMMENT '테스트admin passwd',
-  `TCODE` varchar(20) DEFAULT NULL,
-  `encval` varchar(20) DEFAULT NULL COMMENT 'default encoding',
-  `proto` char(1) DEFAULT '0',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+INSERT INTO tapplication (appid, appnm, manager ) VALUES('','기본','AQT') ;
 
 CREATE TABLE IF NOT EXISTS `texecjob` (
   `pkey` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -259,6 +353,7 @@ CREATE TABLE IF NOT EXISTS `texecjob` (
   `dbskip` char(1) NOT NULL DEFAULT '0' COMMENT '1. dbupdate skip',
   `etc` varchar(256) NOT NULL DEFAULT '' COMMENT '기타 선택조건',
   `in_file` varchar(100) NOT NULL DEFAULT '' COMMENT '입력파일 or src Tcode',
+  `limits` varchar(30) DEFAULT '' COMMENT '처리건수 ( 예: 1,10 )',
   `outlogdir` varchar(50) NOT NULL DEFAULT '' COMMENT 'out로그위치',
   `tuser` varchar(50) NOT NULL DEFAULT '',
   `tdir` varchar(50) NOT NULL DEFAULT '',
@@ -272,7 +367,7 @@ CREATE TABLE IF NOT EXISTS `texecjob` (
   `endDt` datetime DEFAULT NULL COMMENT '작업종료시간',
   `msg` mediumtext DEFAULT '' COMMENT '작업메세지',
   PRIMARY KEY (`pkey`)
-) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8 COMMENT='테스트작업요청\r\njobkind :\r\n0. tcode 에  etc의 정보를 이용하여 캡쳐수행\r\n1. tcode 에  infile 을 etc 조건적용하여 import\r\n3. tcode 애 infile 의 테스트 id를 복사해옴  infil -> tcode ( etc 조건적용 )\r\n9. 테스트송신';
+) ENGINE=InnoDB  COMMENT='테스트작업요청\r\njobkind :\r\n0. tcode 에  etc의 정보를 이용하여 캡쳐수행\r\n1. tcode 에  infile 을 etc 조건적용하여 import\r\n3. tcode 애 infile 의 테스트 id를 복사해옴  infil -> tcode ( etc 조건적용 )\r\n9. 테스트송신';
 
 CREATE TABLE IF NOT EXISTS `thostmap` (
   `pkey` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -283,20 +378,54 @@ CREATE TABLE IF NOT EXISTS `thostmap` (
   `tport2` int(11) unsigned DEFAULT NULL,
   PRIMARY KEY (`pkey`),
   KEY `tcode` (`tcode`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB ;
 
 CREATE TABLE IF NOT EXISTS `tlevel` (
   `lvl` char(1) NOT NULL DEFAULT '0',
   `lvl_nm` varchar(50) NOT NULL DEFAULT '',
   `svc_cnt` int(10) unsigned NOT NULL DEFAULT 0,
   `data_cnt` int(10) unsigned NOT NULL DEFAULT 0 COMMENT '테스트수행건수',
-  `scnt` int(10) unsigned NOT NULL DEFAULT 0 COMMENT '성공건수'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='테스트 level 단위, 통합, 실시간 ';
+  `scnt` int(10) unsigned NOT NULL DEFAULT 0 COMMENT '성공건수',
+  PRIMARY KEY (`lvl`) USING BTREE
+) ENGINE=InnoDB COMMENT='테스트 level 단위, 통합, 실시간 ';
+
+INSERT INTO tlevel (lvl,lvl_nm) values('1','단위'),('2','통합'),('3','정합성') ;
+
+CREATE TABLE IF NOT EXISTS `tloaddata` (
+  `pkey` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `tcode` varchar(50) NOT NULL,
+  `o_stime` datetime(6) NOT NULL COMMENT 'org 송신시간',
+  `stime` datetime(6) NOT NULL COMMENT '송신시간',
+  `rtime` datetime(6) NOT NULL COMMENT '수신시간',
+  `elapsed` double(22,3) NOT NULL DEFAULT (time_to_sec(`rtime`) - time_to_sec(`stime`)) COMMENT '소요시간',
+  `svctime` double(22,3) GENERATED ALWAYS AS (time_to_sec(`rtime`) - time_to_sec(`stime`)) VIRTUAL,
+  `srcip` varchar(30) DEFAULT NULL COMMENT '소스ip',
+  `srcport` int(10) unsigned DEFAULT NULL COMMENT '소스port',
+  `dstip` varchar(30) DEFAULT NULL COMMENT '목적지ip',
+  `dstport` int(10) unsigned DEFAULT NULL COMMENT '목적지port',
+  `proto` char(1) DEFAULT '0' COMMENT '0.tcp 1.http 2.https',
+  `method` varchar(20) DEFAULT NULL COMMENT 'method',
+  `uri` varchar(512) DEFAULT NULL,
+  `seqno` int(10) unsigned DEFAULT NULL,
+  `ackno` int(10) unsigned DEFAULT NULL,
+  `rcode` int(10) unsigned DEFAULT 0 COMMENT 'return code',
+  `sflag` char(1) GENERATED ALWAYS AS (if(`rcode` > 399,'2',if(`rcode` = 0,'0','1'))) VIRTUAL,
+  `rhead` varchar(8192) DEFAULT NULL COMMENT 'response header',
+  `errinfo` varchar(200) DEFAULT NULL,
+  `slen` int(10) unsigned DEFAULT NULL COMMENT '송신데이터길이',
+  `rlen` int(10) unsigned DEFAULT NULL COMMENT '수신데이터길이',
+  `sdata` mediumblob DEFAULT NULL COMMENT '송신데이터',
+  `rdata` mediumblob DEFAULT NULL COMMENT '수신데이터',
+  `cdate` datetime(6) DEFAULT current_timestamp(6) COMMENT '생성일시',
+  PRIMARY KEY (`pkey`) USING BTREE,
+  KEY `tcode` (`tcode`,`o_stime`) USING BTREE,
+  KEY `uri` (`uri`,`o_stime`)
+) ENGINE=InnoDB ;
 
 CREATE TABLE IF NOT EXISTS `tmaster` (
   `code` varchar(20) NOT NULL,
   `type` char(1) DEFAULT '1' COMMENT '1.배치테스트 2.실시간',
-  `lvl` char(1) DEFAULT '0' COMMENT '0.ORIGIN 1.단위  2.통합테스트',
+  `lvl` char(1) DEFAULT '0' COMMENT '0.ORIGIN 1.단위  2.통합테스트 3.정합성',
   `desc1` varchar(50) DEFAULT NULL,
   `cmpCode` varchar(20) DEFAULT NULL COMMENT '주비교테스트',
   `tdate` date DEFAULT current_timestamp() COMMENT '테스트시작일',
@@ -305,30 +434,31 @@ CREATE TABLE IF NOT EXISTS `tmaster` (
   `tuser` varchar(20) DEFAULT NULL,
   `thost` varchar(50) DEFAULT NULL,
   `tport` int(10) unsigned NOT NULL DEFAULT 0,
-  `tenv` varchar(50) DEFAULT NULL COMMENT '별도환경파일위치',
+  `tenv` varchar(100) DEFAULT NULL COMMENT '별도환경파일위치',
+  `pro` char(1) DEFAULT '0',
   `svc_cnt` int(10) unsigned DEFAULT 0,
   `fsvc_cnt` int(10) unsigned DEFAULT 0,
   `data_cnt` int(10) unsigned DEFAULT 0,
   `scnt` int(10) unsigned DEFAULT 0,
   `fcnt` int(10) unsigned DEFAULT 0,
   PRIMARY KEY (`code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='테스트 기본정보';
+) ENGINE=InnoDB COMMENT='테스트 기본정보';
 
 CREATE TABLE IF NOT EXISTS `tmpt` (
   `pkey` int(10) unsigned NOT NULL,
   `dat1` longblob DEFAULT NULL,
   PRIMARY KEY (`pkey`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB ;
 
 CREATE TABLE IF NOT EXISTS `trequest` (
   `pkey` int(10) unsigned NOT NULL,
   `cmpid` int(10) unsigned NOT NULL,
   `tcode` varchar(50) NOT NULL DEFAULT '',
-  `uuid` char(32) DEFAULT '',
+  `uuid` VARCHAR(512) DEFAULT null,
   `reqUser` varchar(50) NOT NULL DEFAULT '' COMMENT '요청자',
   `reqDt` timestamp NULL DEFAULT current_timestamp() COMMENT '요청일시',
   PRIMARY KEY (`pkey`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='tr재전송요청';
+) ENGINE=InnoDB COMMENT='tr재전송요청';
 
 CREATE TABLE IF NOT EXISTS `tservice` (
   `pkey` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -342,7 +472,7 @@ CREATE TABLE IF NOT EXISTS `tservice` (
   `cumcnt` int(10) unsigned DEFAULT 0 COMMENT '누적건수',
   PRIMARY KEY (`pkey`) USING BTREE,
   KEY `svcapp` (`svcid`,`appid`)
-) ENGINE=InnoDB AUTO_INCREMENT=514 DEFAULT CHARSET=utf8 COMMENT='서비스 id / name';
+) ENGINE=InnoDB COMMENT='서비스 id / name';
 
 CREATE TABLE IF NOT EXISTS `ttasksum` (
   `task` varchar(50) NOT NULL,
@@ -354,17 +484,18 @@ CREATE TABLE IF NOT EXISTS `ttasksum` (
   `fcnt` int(10) unsigned DEFAULT 0,
   `udate` datetime DEFAULT current_timestamp(),
   PRIMARY KEY (`task`,`lvl`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS `ttcppacket` (
   `pkey` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `cmpid` int(10) unsigned NOT NULL DEFAULT 0,
   `tcode` varchar(50) NOT NULL,
+  `appid` VARCHAR(50) NOT NULL DEFAULT '',
   `o_stime` datetime(6) NOT NULL COMMENT 'org 송신시간',
   `stime` datetime(6) NOT NULL COMMENT '송신시간',
   `rtime` datetime(6) NOT NULL COMMENT '수신시간',
   `svctime` double(22,3) GENERATED ALWAYS AS (time_to_sec(`rtime`) - time_to_sec(`stime`)) VIRTUAL,
-  `elapsed` double(22,3) NOT NULL DEFAULT (`rtime` - `stime`) COMMENT '소요시간',
+  `elapsed` double(22,3) NOT NULL DEFAULT (time_to_sec(`rtime`) - time_to_sec(`stime`)) COMMENT '소요시간',
   `srcip` varchar(30) DEFAULT NULL COMMENT '소스ip',
   `srcport` int(10) unsigned DEFAULT NULL COMMENT '소스port',
   `dstip` varchar(30) DEFAULT NULL COMMENT '목적지ip',
@@ -383,43 +514,13 @@ CREATE TABLE IF NOT EXISTS `ttcppacket` (
   `sdata` mediumblob DEFAULT NULL COMMENT '송신데이터',
   `rdata` mediumblob DEFAULT NULL COMMENT '수신데이터',
   `cdate` datetime(6) DEFAULT current_timestamp(6) COMMENT '생성일시',
+  `col1` VARCHAR(100)  AS (cast('' as char(100) )) virtual ,
+  `col2` VARCHAR(100)  AS (cast('' as char(100) )) virtual ,
+
   PRIMARY KEY (`pkey`),
   KEY `cmpid` (`cmpid`),
-  KEY `tcode` (`tcode`)
-) ENGINE=InnoDB AUTO_INCREMENT=57587 DEFAULT CHARSET=utf8;
-
-CREATE TABLE IF NOT EXISTS `ttransaction` (
-  `pkey` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `uuid` char(32) NOT NULL COMMENT 'uuid',
-  `tcode` varchar(50) NOT NULL COMMENT '테스트코드',
-  `svrnm` varchar(50) DEFAULT NULL COMMENT '서버명',
-  `svcid` varchar(50) DEFAULT NULL COMMENT '서비스id',
-  `o_stime` datetime(6) DEFAULT NULL COMMENT 'asis송신시간',
-  `stime` datetime(6) DEFAULT NULL COMMENT '송신시간',
-  `rtime` datetime(6) DEFAULT NULL COMMENT '수신시간',
-  `userid` varchar(20) DEFAULT NULL COMMENT '사용자id',
-  `clientIp` varchar(40) DEFAULT NULL COMMENT '사용자ip',
-  `dstip` varchar(40) DEFAULT NULL,
-  `dstport` int(10) unsigned DEFAULT 0,
-  `seqno` int(10) unsigned DEFAULT 0,
-  `ackno` int(10) unsigned DEFAULT 0,
-  `scrno` varchar(20) DEFAULT NULL COMMENT '화면ID',
-  `msgcd` varchar(10) DEFAULT NULL COMMENT '수신메세지코드',
-  `rcvmsg` varchar(120) DEFAULT NULL COMMENT '수신메세지',
-  `errinfo` varchar(120) DEFAULT NULL,
-  `sflag` char(1) DEFAULT NULL COMMENT '1.성공 2.실패',
-  `async` char(1) DEFAULT NULL COMMENT '0.tpacall  1.tpcall',
-  `svctime` double(22,3) DEFAULT (`rtime` - `stime`) COMMENT '순수서비스소요시간',
-  `elapsed` double(22,3) GENERATED ALWAYS AS (time_to_sec(`rtime`) - time_to_sec(`stime`)) VIRTUAL,
-  `slen` int(10) unsigned DEFAULT NULL COMMENT '송신데이터길이',
-  `rlen` int(10) unsigned DEFAULT NULL COMMENT '수신데이터길이',
-  `sdata` mediumblob DEFAULT NULL COMMENT '송신데이터',
-  `rdata` mediumblob DEFAULT NULL COMMENT '수신데이터',
-  `cdate` datetime(6) DEFAULT current_timestamp(6) COMMENT '생성시간',
-  PRIMARY KEY (`pkey`),
-  KEY `tcode_uuid` (`tcode`,`uuid`),
-  KEY `tcode_svcid_stime` (`tcode`,`svcid`,`o_stime`)
-) ENGINE=InnoDB AUTO_INCREMENT=238 DEFAULT CHARSET=utf8 COMMENT='거래데이터 ';
+  KEY `tcode` (`tcode`,`o_stime`) USING BTREE
+) ENGINE=InnoDB ;
 
 DELIMITER //
 CREATE FUNCTION `uf_getapp`(`in_ip` VARCHAR(50),
@@ -438,11 +539,7 @@ BEGIN
 END//
 DELIMITER ;
 
-CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vtcppacket` AS SELECT t.*, ifnull(a.appid,'') appid , m.*  FROM ttcppacket t JOIN tmaster m ON (t.tcode = m.code ) 
-LEFT JOIN tapphosts a ON (t.dstip = a.thost AND (t.dstport = a.tport OR a.tport = 0)) ;
-
-CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vtransaction` AS SELECT t.*, ifnull(a.appid,'') appid , m.*  FROM ttransaction t JOIN tmaster m ON (t.tcode = m.code ) 
-LEFT JOIN tapphosts a ON (t.dstip = a.thost AND (t.dstport = a.tport OR a.tport = 0)) ;
+CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vtcppacket` AS SELECT t.*, m.*  FROM ttcppacket t JOIN tmaster m ON (t.tcode = m.code )  ;
 
 CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vtrxdetail` AS SELECT 1 pkey, CAST('' as VARCHAR(20)) tcode,  CAST('' as VARCHAR(60)) svcid,  CAST('' as VARCHAR(60)) scrno,   
 							CAST('' as VARCHAR(60)) svckor , 1 tcnt, 99.99 avgt , 1 scnt , 1 fcnt, 1 cumcnt ;
@@ -453,21 +550,7 @@ CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vtrxlist` AS SELECT      t
             ifnull(t.data_cnt, 0) data_cnt,
             ifnull(t.scnt, 0) scnt,
             ifnull(t.fcnt, 0) fcnt,
-            ifnull(scnt * 100 / (scnt+fcnt) ,0.0)  spct,
+            IFNULL(t.scnt * 100 / (t.scnt+t.fcnt) ,0.0)  spct,
             IFNULL(l.svc_cnt,0) tot_svccnt
-from tmaster t left JOIN tlevel l ON (t.lvl = l.lvl) 
- ;
+from tmaster t left JOIN tlevel l ON (t.lvl = l.lvl) ;
 
-INSERT INTO `tconfig` (`id`, `pass1`, `TCODE`,proto) VALUES
-	(1, 'testadmin', NULL, '0');
-
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'dawinit1';
-
-CREATE USER 'aqtdb'@'%' IDENTIFIED BY 'Dawinit1!';
-GRANT EXECUTE,SELECT, DELETE, INSERT, EVENT, UPDATE, TRIGGER  ON `aqtdb2`.* TO 'aqtdb'@'%';
-GRANT EXECUTE,SELECT, DELETE, INSERT, EVENT, UPDATE, TRIGGER  ON `aqtdb2`.* TO 'aqtdb'@'localhost';
-
-
-/*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
-/*!40014 SET FOREIGN_KEY_CHECKS=IF(@OLD_FOREIGN_KEY_CHECKS IS NULL, 1, @OLD_FOREIGN_KEY_CHECKS) */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

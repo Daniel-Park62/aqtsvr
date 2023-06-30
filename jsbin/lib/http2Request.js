@@ -3,7 +3,7 @@
 const  { parentPort, threadId,  workerData } = require('worker_threads');
 const moment = require('moment');
 const iconv = require('iconv-lite');
-const http = require('follow-redirects').http;
+const http = require('http');
 const PGNM = '[httpRequest]';
 moment.prototype.toSqlfmt = function (ms) {
   return this.format('YYYY-MM-DD HH:mm:ss.' + ms);

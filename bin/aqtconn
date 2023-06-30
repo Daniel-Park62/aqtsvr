@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-MARIABIN=${MARIADB_HOME}/bin"
+MARIABIN="${MARIADB_HOME}/bin"
 HOST=${AQTDBIP:+"-h ${AQTDBIP}"}
 
 ${MARIABIN}/mysql ${HOST} -uaqtdb -pDawinit1! -N -Daqtdb2 -se "$1"

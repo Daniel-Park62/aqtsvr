@@ -6,14 +6,15 @@ use strict;
 use Getopt::Std ;
 use bytes ;
 use File::Spec;
+use File::Find;
 
-my ($NL, $TAB) = ("\n","\t") ;
+use constant {NL => "\n",TAB => "\t"} ;
 
 my %myopts = () ;
 
 sub Usage {
   print STDERR <<"END" ;
-    사용법 : $0 [-s oltpID] -d -o 결과dir [-n 서비스별건수] [-e fillter] input dir
+    사용법 : $0 [-s oltpID] -d -o 결과파일 [-n 서비스별건수] [-e fillter] input dir
         -d : 파일별서비스
         -e : 파일명 fillter
 END

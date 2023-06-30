@@ -1,0 +1,17 @@
+ALTER TABLE `tconfig`
+	ADD COLUMN `COL1` VARCHAR(50) NULL DEFAULT NULL AFTER `pjtnm`,
+	ADD COLUMN `COL2` VARCHAR(50) NULL DEFAULT NULL AFTER `COL1`;
+
+ALTER TABLE `ttcppacket`
+	ADD COLUMN `col1` VARCHAR(100) AS (cast('' as varchar(100))) VIRTUAL AFTER `cdate`,
+	ADD COLUMN `col2` VARCHAR(100) AS (cast('' as varchar(100))) VIRTUAL AFTER `col1`;	
+	
+	
+SELECT A.uri 서비스,s.svckor `서비스명`,
+A.sdata 송신데이터,A.svctime 소요시간, B.svctime 원_소요시간,
+CAST( SUBSTR(A.rdata,1,100) AS CHAR CHARSET UTF8) 수신,
+CAST( SUBSTR(B.rdata,1,100) AS CHAR CHARSET UTF8) 원수신
+FROM ttcppacket A JOIN tloaddata B ON (A.cmpid = B.pkey) 
+LEFT JOIN tservice s ON (A.appid = s.appid AND A.uri = s.svcid )
+WHERE a.tcode = 'TN10'
+AND SUBSTR(A.rdata,1,100) != SUBSTR(B.rdata,1,100)

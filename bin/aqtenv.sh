@@ -7,5 +7,8 @@ AQTLOG=$AQTHOME/logs
 # AQTDBPASS=
 
 # AQTTYPE=    ( TMAX, TCP, HTTP ) default HTTP
+
+# AqtTimeOut=30000  기본 30초 설정 , tcp or http timeout값 
+
 echo $AQTHOME $AQTLOG
 export AQTHOME AQTLOG

@@ -1,4 +1,4 @@
-const http = require('http')
+const http = require('follow-redirects').http ;
 const https = require('https')
 const querystring = require('querystring');
 

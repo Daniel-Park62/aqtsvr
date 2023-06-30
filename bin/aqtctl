@@ -1,5 +1,8 @@
 #!/usr/bin/bash
-
+if [ $# -lt 2 ] ; then
+  echo " aqtctl [start|stop] [HTTP|TMAX]"
+  exit ;
+fi
 # AQTTYPE ( TMAX, HTTP ) 기본값 HTTP
 cd $AQTHOME
 
@@ -67,7 +70,7 @@ function stop_f2 {
     echo "중지할 작업이 없습니다.";
   fi
 }
-
+AQTTYPE=$2;
 case $1 in
   start|restart|reload)
     echo "deamon start";

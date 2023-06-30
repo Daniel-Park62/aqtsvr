@@ -15,6 +15,7 @@
   "author": "DawinICT",
   "license": "ISC",
   "dependencies": {
+    "follow-redirects": "^1.15.2",
     "mariadb": "^3",
     "moment": "^2.29.1"
   }
