@@ -1,7 +1,7 @@
 module.exports = {
     tcode:null,
-    dstip: '27.102|192.168.147.10',
-    dstport:'' ,
+    dstip: '127.0.0.1',
+    dstport:'3646[0-9]' ,
     svcid:'',
     ptype:'F',
     dstv:null,

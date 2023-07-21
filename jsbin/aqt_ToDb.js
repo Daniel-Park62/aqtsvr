@@ -4,6 +4,8 @@ if ( process.env.AQTTYPE === 'TMAX')
     aqttype = 'capToDb_tmax' ;
 else if ( process.env.AQTTYPE === 'TCP') 
     aqttype = 'capToDb_tcp' ;
+else if ( process.env.AQTTYPE === 'JEUS') 
+    aqttype = 'capToDb_tcp_jeus' ;
 else
     aqttype = 'capToDb' ;
 const cdb = require('./lib/' + aqttype) ;

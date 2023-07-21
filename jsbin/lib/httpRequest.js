@@ -74,7 +74,7 @@ function dataHandle(rdata ) {
   for(const v of shead2) {
     const kv = v.split(':');
     // if (/(Content-Type|Referer|upgrade-Insecure-Requests|Accept|Cookie)/.test(kv[0])) {
-    if (! /^(GET|POST|DELETE|PUT|PATCH|Host)/i.test(kv[0])) {
+    if (! /^(GET|POST|DELETE|PUT|PATCH|Host)\b/i.test(kv[0])) {
       let val = kv.slice(1).join(':').trim();
       if (/^Cookie/i.test(kv[0])) val = change_cookie(val);
       if (/^X-WebLogic-Force-JVMID/i.test(kv[0])) {
@@ -158,6 +158,7 @@ function dataHandle(rdata ) {
           .then(parentPort.postMessage({ok:1})) ;
     });
   });
+  
   if (pi > 0 && /POST|PUT|DELETE|PATCH/.test(rdata.method)) {
     const sdata = sdataStr.slice(pi + 4);
 
