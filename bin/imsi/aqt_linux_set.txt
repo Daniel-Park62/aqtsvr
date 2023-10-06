@@ -58,7 +58,7 @@ character-set-server    = utf8mb4
 collation-server        = utf8mb4_unicode_ci
 default-storage-engine = INNODB
 event_scheduler = ON
-innodb_buffer_pool_size = 4G
+innodb_buffer_pool_size = 2G
 innodb_flush_log_at_trx_commit  = 0
 
 innodb_purge_threads = 1
@@ -120,9 +120,6 @@ sudo ln -s /usr/local/lib/nodejs/node-$VERSION-$DISTRO/bin/npm /usr/bin/npm
 
 sudo ln -s /usr/local/lib/nodejs/node-$VERSION-$DISTRO/bin/npx /usr/bin/npx
 
-==========================================
-
-
 
 ==========================
 B. Decompress the package
@@ -143,18 +140,3 @@ Step 2: add it to the Linux global environment, that is, the directory / usr / l
 
 ln -s /usr/local/node/bin/pm2  /usr/local/bin/pm2
 Test it, enter PM2 directly, the following scenario will appear, you can announce the success, congratulations.
-
-
-String[] IP_HEADER_CANDIDATES = {
-        "X-Forwarded-For",
-        "Proxy-Client-IP",
-        "WL-Proxy-Client-IP",
-        "HTTP_X_FORWARDED_FOR",
-        "HTTP_X_FORWARDED",
-        "HTTP_X_CLUSTER_CLIENT_IP",
-        "HTTP_CLIENT_IP",
-        "HTTP_FORWARDED_FOR",
-        "HTTP_FORWARDED",
-        "HTTP_VIA",
-        "REMOTE_ADDR"
-    };

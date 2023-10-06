@@ -1,0 +1,320 @@
+
+** aqt_conv2.pl
+
+#!/usr/bin/perl
+
+
+
+# AQT CONVERT
+
+
+
+#use warnings ;
+
+use strict;
+
+use Getopt::Std ;
+
+use bytes ;
+
+use File::Spec;
+
+use File::Find;
+
+
+
+my ($NL, $TAB, $MAXL) = ("\n","\t", 16e3) ;
+
+
+
+my $shead ;
+
+$shead = "POST /proframeWeb/FLDSERVICES/TS HTTP/1.1\r\n" .
+
+         "Content-Type: application/x-www-form-urlencoded\r\n".
+
+         "Connection: Keep-Alive\r\n" ;
+
+
+
+my %myopts = () ;
+
+
+
+sub Usage {
+
+  print STDERR <<"END" ;
+
+    »ç¿ë¹ý : $0 [-s oltpID] -d -o °á°údir [-n ¼­ºñ½ºº°°Ç¼ö] [-e fillter] input dir
+
+        -d : ÆÄÀÏº°¼­ºñ½º
+
+        -e : ÆÄÀÏ¸í fillter
+
+END
+
+  exit ;
+
+}
+
+
+
+sub parse_arg {
+
+  getopts("hdo:n:e:s:", \%myopts) || Usage ;
+
+  Usage if ($myopts{h});
+
+  if ( $myopts{n} && ( $myopts{n} !~ /^\d+$/ || $myopts{n} < 1)){
+
+    print STDERR "-n 1 ÀÌ»óÀÇ ¼ýÀÚ¸¦ ¼±ÅÃÇÏ¼¼¿ä.\n" ;
+
+    exit;
+
+  }
+
+}
+
+
+
+sub get_date {
+
+  my $dt = `date +"%F %R"` ;
+
+  chomp $dt ;
+
+  return $dt ;
+
+}
+
+
+
+parse_arg() ;
+
+my $func = \&file_anal ;
+
+my $pwd = qx(pwd);
+
+chomp $pwd ;
+
+
+
+my @tdir = <@ARGV> ;
+
+if ( ! -d $tdir[0] ) {
+
+  print SRDERR "INPUT DIR Check !\n" ;
+
+  exit ;
+
+}
+
+if ( ! -d $myopts{o} ) {
+
+  print SRDERR "OUTPUT DIR Check !\n" ;
+
+  exit ;
+
+}
+
+
+
+open (my $FE,">","aqtConvert_$$.err") || die "$?" ;
+
+my (%tdata, %svcarr) ;
+
+
+
+print $FE "AQT CONVERTER Start job", get_date,"**$NL" ;
+
+find( { wanted => $func }, @tdir) ;
+
+print $FE "AQT CONVERTER End job", get_date,"**$NL" ;
+
+close $FE ;
+
+
+
+
+
+sub file_anal{
+
+    chomp ;
+
+    return if ( -d || ! /dat$/ ) ;
+
+    return if ( $myopts{e} && ! /$myopts{e}/ ) ;
+
+    open(my $FI,"<",$_) || print STDERR "$? $_ $NL" && return ;
+
+    local $/ = "@@\n" ;
+
+
+
+    %svcarr = () if ( $myopts{d} ) ;
+
+    my $outf = $myopts{o}.'/'. $_ ;
+
+    $| = 1;
+
+    open (my $FO, ">", $outf ) || die "$! $outf";
+
+    
+
+    LOOP1: while ( my $stext=<$FI>)
+
+    {
+
+        chomp($stext) ;
+
+        my $uuid = substr($stext,73,29) ;
+
+      if ( substr($stext,70,1) eq 'Q' ) {
+
+        my $slen = substr($stext,62,8) - 494;
+
+#       if ($slen > $MAXL ) {
+
+#               print $slen, " ssz, $uuid \n" ;
+
+#               $slen = $MAXL ;
+
+#       }
+
+        my $shead2 = $shead . "Content-Length: ". $slen . "\r\n\r\n" ;
+
+        my $sdata = substr($stext,562,$slen) ;
+
+        my $srcip = join('.', substr($stext,106,3)+0, substr($stext,109,3)+0, substr($stext,112,3)+0, substr($stext,115,3)+0) ;
+
+        if ($srcip !~ /\d+\.\d+\.\d+\.\d+/) {
+
+                print $uuid," $srcip : \n" ;
+
+        }
+
+        my $dstip = substr($stext, 45,10) ;
+
+        my ($trg, $frame_cnt, $or_pkg_size) = ( substr($stext,230,1) , substr($stext,231,3) , substr($stext,234,8)) ; # Àü¹®ºÐÇÒ, ÇÁ·¹ÀÓÄ«¿îÆ®, ¿ø»çÀÌÁî
+
+        my $svcid = substr($stext,287,10) ;
+
+        my $ctnu_tr =substr($stext,297,1);  # ¿¬¼Ó°Å·¡ ±¸ºÐÄÚµå
+
+        my $stime = substr($stext,250,17) ;      
+
+      
+
+        print $FE $uuid,$stime,$NL if (length($stime) != 17 or ! $stime =~ /2\d{3}[01][0-9][0-3][0-9]\d{9}/ ) ;
+
+        my $trhead = substr($stext,62,466) ;
+
+
+
+        if ( $myopts{s} && $svcid !~ $myopts{s}) {
+
+          next LOOP1 ;
+
+        }
+
+        if ( $myopts{n} && $myopts{n} <= $svcarr{$svcid}){
+
+          next LOOP1 ;
+
+        }
+
+
+
+        $tdata{$uuid} = join("^#@", $slen, $srcip, $dstip, $svcid, $stime, $shead2.$sdata, $trhead ) ;
+
+
+
+      } elsif ( substr($stext,70,1) eq 'R' ) {
+
+        my $uuid = substr($stext,73,29) ;
+
+        if ( ! defined $tdata{$uuid} ) {
+
+          print $FE $uuid," error Data : not Found request !$NL";
+
+          next LOOP1;
+
+        }
+
+        my $svcid = substr($stext,287,10) ;
+
+        my $rlen = substr($stext,62,8) - 494;
+
+##      if ($rlen > $MAXL ) {
+
+#               print $rlen, " rsz, $uuid \n" ;
+
+#               $rlen = $MAXL ;
+
+#       }
+
+        my $rdata = substr($stext,562,$rlen) ;
+
+        my $rtime = substr($stext,267,17)  ; 
+
+        print $FE $uuid,$rtime,$NL if (length($rtime) != 17 or ! $rtime =~ /2\d{3}[01][0-9][0-3][0-9]\d{9}/ ) ;
+
+        my $adata = join("^#@", $tdata{$uuid},$rlen ,$rtime , $rdata) ;
+
+        my $cnt = () = ($adata =~ /\^\#\@/sg ) ;
+
+        if ( $cnt == 9 ) {
+
+                print $FO $adata,"~AQT\n" ;
+
+                $svcarr{$svcid}++  if ($myopts{n}) ;
+
+        } else {
+
+                print $FE $uuid ," error\n" ;
+
+        }
+
+        delete $tdata{$uuid} ;
+
+      }
+
+    }
+
+
+
+    close $FO ;
+
+    close $FI ;
+
+    print $_, " END $NL";
+
+}
+
+
+
+** ¿¡·¯ ³»¿ë
+
+ERROR 1411 (HY000) at line 7: Incorrect datetime value: '                               XA1020' for function str_to_date
+
+
+
+** ¿øº»
+
+MB2307202225163029680800014231689859517115944pinap02   S00051200000504Q9NMB2307202225163029680800014230010112152003005                           AIC55933FE  P01052657953                                   00001423000130296808MACB RS000000004940000000220230720222517115                 105OAM5715Q010 0NKR B1195311953       00this799             7809M7809M00                                SP             00000020 1                                                                                                                                                     =[1m~D[1m^Ev@
+
+
+
+** ÆÄ½ÌÈÄ
+
+10^#@112.152.3.5^#@pinap02   ^#@OAM5715Q01^#@20230720222517115^#@POST /proframeWeb/FLDSERVICES/TS HTTP/1.1^M
+
+Content-Type: application/x-www-form-urlencoded^M
+
+Connection: Keep-Alive^M
+
+Content-Length: 10^M
+
+^M
+
+=[2C[2Cv[18#14H000504Q9NMB2307202225163029680800014230010112152003005                           AIC55933FE  P01052657953                                   00001423000130296808MACB RS000000004940000000220230720222517115                 105OAM5715Q010 0NKR B1195311953       00this799             7809M7809M00                                SP             00000020 1                                                                                                                   ^#@251^#@20230720222517119^#@                               XA1020Á¶È¸°¡ ¿Ï·áµÇ¾ú½À´Ï´Ù                                                                                                                                                                                                N~AQT

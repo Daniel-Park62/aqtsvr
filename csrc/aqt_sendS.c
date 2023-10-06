@@ -120,6 +120,7 @@ static void fork_proc(int c)
   {
     if (fork() == 0)
     {
+      closeDB();
       execl(cexec, cexec, carr1, carr2, NULL);
     }
   }

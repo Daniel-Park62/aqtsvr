@@ -1,0 +1,103 @@
+		String[] COLUMN_HEADER = new String[]{"ID","Description"};
+
+		tableViewer.setColumnProperties(COLUMN_HEADER);
+		// CellEditor 생성 
+        CellEditor[] CELL_EDITORS = new CellEditor[COLUMN_HEADER.length];
+        for(int i=0; i < CELL_EDITORS.length ; i++) {
+            CELL_EDITORS[i] = new TextCellEditor(tableViewer.getTable());
+            // or CheckboxCellEditor, ComboBoxCellEditor 등 사용
+        }        
+        /*        
+        tableViewer.setCellEditors(CELL_EDITORS);
+        // Modifier 지정
+        tableViewer.setCellModifier(new ICellModifier() {
+            
+            @Override
+            public boolean canModify(Object arg0, String arg1) {
+                MoteStatus model = (MoteStatus)arg0; 
+                System.out.println(model);
+                
+                if(arg1.equals(COLUMN_HEADER[0])) {
+                    return false;
+                }
+                else {
+                    return true;
+                }
+            }
+            
+            @Override
+            public Object getValue(Object arg0, String arg1) {
+            	MoteStatus model = (MoteStatus)arg0;
+                if(arg1.equals(COLUMN_HEADER[1])) {
+                    return model.getDesc();
+                }
+                return null;
+            }
+            
+            @Override
+            public void modify(Object arg0, String arg1, Object arg2) {
+                System.out.println(arg0);
+                TableItem talbeitem = (TableItem)arg0;    // tableitem
+                String columName = arg1;                // 컬럼이름
+                String value = (String)arg2;            // 현재 값
+                
+                MoteStatus model = (MoteStatus)talbeitem.getData();
+                
+                if(columName.equals(COLUMN_HEADER[1])) {
+                    model.setDesc(value);
+                }
+                tableViewer.refresh();
+            }
+        });
+
+*/		
+
+
+class MoteCellModifier implements ICellModifier {
+	  private Viewer viewer;
+
+	  public MoteCellModifier(Viewer viewer) {
+	    this.viewer = viewer;
+	  }
+
+	  public boolean canModify(Object element, String property) {
+	    return true;
+	  }
+
+	  public Object getValue(Object element, String property) {
+		  MoteStatus p = (MoteStatus) element;
+	    if ("Description".equals(property))
+	      return p.getDesc();
+	    else if ("Spare".equals(property))
+	      return p.getSpare();
+	    else if ("Type".equals(property))
+		      return p.getGubun();
+	    else
+	      return null;
+	  }
+
+	  public void modify(Object element, String property, Object value) {
+	    if (element instanceof Item) element = ((Item) element).getClass();
+
+	    MoteStatus p = (MoteStatus) element;
+	    if ("Description".equals(property))
+	      p.setDesc((String) value);
+	    else if ("Spare".equals(property))
+	      p.setSpare((String)value);
+	    else if ("Type".equals(property))
+	      p.setGubun((String)value);
+
+	    viewer.refresh();
+	  }
+}
+
+class TypeSelect {
+	  public static final String SENSOR = "S";
+	  public static final String REPEATER = "R";
+	  public static final String TODDLER = "4 - 7";
+	  public static final String CHILD = "8 - 12";
+	  public static final String TEENAGER = "13 - 19";
+	  public static final String ADULT = "20 - ?";
+
+	  public static final String[] INSTANCES = { SENSOR, REPEATER } ;
+	}

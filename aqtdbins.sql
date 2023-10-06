@@ -165,6 +165,38 @@ END//
 DELIMITER ;
 
 DELIMITER //
+CREATE PROCEDURE `sp_loaddata`(
+	IN `p_src` VARCHAR(50),
+	IN `p_dst` VARCHAR(50),
+	IN `p_cond` CHAR(150)
+)
+COMMENT ''
+BEGIN
+
+DECLARE v_msg VARCHAR(100) ;
+
+SET @SQLT = CONCAT ( '
+							INSERT INTO ttcppacket ( tcode, cmpid, o_stime, stime, rtime, elapsed, srcip, srcport, dstip, dstport, proto, method, 
+											 uri, seqno, ackno, slen, rlen, sdata, rdata, errinfo	,rhead	) 
+							SELECT \'', p_dst,'\', pkey , o_stime, stime, rtime, elapsed, srcip, srcport, dstip, dstport, proto, method, 
+											 uri, seqno, ackno, slen, rlen, sdata, rdata, errinfo	,rhead FROM TLOADDATA WHERE '
+		, if (p_src = '%' ,'true', CONCAT('TCODE = \'',p_src,'\'') ) , p_cond );
+		
+
+-- SELECT @SQLT ;
+EXECUTE IMMEDIATE @SQLT   ;
+
+SELECT CONCAT( format(ROW_COUNT(),0), ' 건 복제되었음:', p_dst ) INTO v_msg ;
+/*	
+	INSERT INTO texecjob (jobkind, tdesc, tcode,  in_file, resultStat, etc, tnum ,reqnum, startdt, enddt, msg)
+	 VALUES ( 3, '전문생성작업', p_dst, p_src,  2, p_cond, 1, p_ecnt, cdate,NOW(), v_msg ) ;
+*/	 
+	 SELECT v_msg ;
+	
+END//
+DELIMITER ;
+
+DELIMITER //
 CREATE PROCEDURE `sp_loaddata2`(
 	IN `p_src` VARCHAR(50),
 	IN `p_dst` VARCHAR(50),
@@ -185,18 +217,19 @@ DECLARE cur1 CURSOR FOR
 	
 DECLARE cur2 CURSOR FOR 
 	SELECT pkey, o_stime, rtime, elapsed, srcip, srcport, dstip, dstport, proto, method, 
-			seqno, ackno, slen, rlen, sdata, rdata, errinfo,rhead, uf_getapp(dstip,dstport) appid
+			seqno, ackno, slen, rlen, sdata, rdata, errinfo,rhead, appid
 	 FROM vtloaddata t
 	WHERE uri = s_uri
 	  AND NOT EXISTS (SELECT 1 FROM ttcppacket WHERE tcode = p_dst AND cmpid = t.pkey)
 	ORDER BY o_stime desc
 	LIMIT p_ecnt ;
+
 	
 DECLARE CONTINUE HANDLER FOR NOT FOUND SET done := TRUE ;
 
 SET @SQLT = CONCAT ( 
 	'create or REPLACE VIEW VTLOADDATA AS
-	  SELECT t.* FROM TLOADDATA t  WHERE ', if (p_src = '%' ,'true', CONCAT('TCODE = \'',p_src,'\'') ) , p_cond ) ; 
+	  SELECT t.*,IFNULL(B.APPID,\'\') APPID FROM TLOADDATA t LEFT JOIN tapphosts B ON (T.DSTIP = B.THOST AND (T.DSTPORT = B.tport OR B.tport = 0)) WHERE ', if (p_src = '%' ,'true', CONCAT('TCODE = \'',p_src,'\'') ) , p_cond ) ; 
 
 -- SELECT @SQLT ;
 EXECUTE IMMEDIATE @SQLT   ;
@@ -230,6 +263,7 @@ readuri: LOOP
 END LOOP ;
 		
 close cur1 ;
+
 
 SELECT CONCAT( format(icnt,0), ' 건 복제되었음:', p_dst ) INTO v_msg ;
 /*	
@@ -327,6 +361,20 @@ BEGIN
 END//
 DELIMITER ;
 
+CREATE TABLE `taqtuser` (
+	`pkey` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+	`Host` VARCHAR(50) NOT NULL ,
+	`usrid` VARCHAR(50) NOT NULL ,
+	`usrdesc` VARCHAR(100) NOT NULL COMMENT '사용자설명' ,
+	`pass1` VARCHAR(50) NOT NULL DEFAULT password('aqtuser') ,
+	`admin` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '테스트관리자 1',
+	`apps` VARCHAR(100) NOT NULL DEFAULT '' ,
+	`regdt` DATETIME NOT NULL DEFAULT current_timestamp(),
+	PRIMARY KEY (`pkey`) USING BTREE
+)
+COLLATE='utf8_general_ci'
+ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS `tapphosts` (
   `pkey` int(11) NOT NULL AUTO_INCREMENT,
   `appid` varchar(50) NOT NULL,
@@ -339,10 +387,11 @@ CREATE TABLE IF NOT EXISTS `tapplication` (
   `appid` varchar(50) NOT NULL,
   `appnm` varchar(60) DEFAULT NULL,
   `manager` varchar(50) DEFAULT NULL COMMENT '담당자',
+  `gubun` TINYINT(4) NULL DEFAULT 0,
   PRIMARY KEY (`appid`)
 ) ENGINE=InnoDB  COMMENT='테스트대상 application';
 
-INSERT INTO tapplication (appid, appnm, manager ) VALUES('','기본','AQT') ;
+INSERT INTO tapplication (appid, appnm, manager ) VALUES('AP01','기본','AQT') ;
 
 CREATE TABLE IF NOT EXISTS `texecjob` (
   `pkey` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -444,12 +493,6 @@ CREATE TABLE IF NOT EXISTS `tmaster` (
   PRIMARY KEY (`code`)
 ) ENGINE=InnoDB COMMENT='테스트 기본정보';
 
-CREATE TABLE IF NOT EXISTS `tmpt` (
-  `pkey` int(10) unsigned NOT NULL,
-  `dat1` longblob DEFAULT NULL,
-  PRIMARY KEY (`pkey`)
-) ENGINE=InnoDB ;
-
 CREATE TABLE IF NOT EXISTS `trequest` (
   `pkey` int(10) unsigned NOT NULL,
   `cmpid` int(10) unsigned NOT NULL,
@@ -539,12 +582,12 @@ BEGIN
 END//
 DELIMITER ;
 
-CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vtcppacket` AS SELECT t.*, m.*  FROM ttcppacket t JOIN tmaster m ON (t.tcode = m.code )  ;
+CREATE  VIEW `vtcppacket` AS SELECT t.*, m.*  FROM ttcppacket t JOIN tmaster m ON (t.tcode = m.code )  ;
 
-CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vtrxdetail` AS SELECT 1 pkey, CAST('' as VARCHAR(20)) tcode,  CAST('' as VARCHAR(60)) svcid,  CAST('' as VARCHAR(60)) scrno,   
+CREATE  VIEW `vtrxdetail` AS SELECT 1 pkey, CAST('' as VARCHAR(20)) tcode,  CAST('' as VARCHAR(60)) svcid,  CAST('' as VARCHAR(60)) scrno,   
 							CAST('' as VARCHAR(60)) svckor , 1 tcnt, 99.99 avgt , 1 scnt , 1 fcnt, 1 cumcnt ;
 
-CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vtrxlist` AS SELECT      t.code, `type`, t.lvl, desc1, cmpCode, tdate, endDate, tdir, tuser, thost, tport, tenv,
+CREATE  VIEW `vtrxlist` AS SELECT      t.code, `type`, t.lvl, desc1, cmpCode, tdate, endDate, tdir, tuser, thost, tport, tenv,
 				ifnull(t.svc_cnt, 0) svc_cnt,
 				ifnull(t.fsvc_cnt, 0) fsvc_cnt,
             ifnull(t.data_cnt, 0) data_cnt,

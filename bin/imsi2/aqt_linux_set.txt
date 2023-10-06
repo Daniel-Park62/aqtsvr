@@ -1,0 +1,188 @@
+# \xEB\x82@#@substr($stext,10)~AQT
+rm /etc/lo@#@substr($stext,10)~AQT
+ln -s /usr@#@substr($stext,10)~AQT
+##########@#@substr($stext,10)~AQT
+/usr/local@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+ln -s mari@#@substr($stext,10)~AQT
+/usr/local@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+ln -s /usr@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+groupadd m@#@substr($stext,10)~AQT
+useradd -g@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+passwd mys@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+chown -R m@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+mkdir -p /@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+cd /db
+@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+chown -R m@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+cd /usr/lo@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+./scripts/@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+./mysqld_s@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+GRANT ALL @#@substr($stext,10)~AQT
+GRANT ALL @#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+SELECT Hos@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+CREATE USE@#@substr($stext,10)~AQT
+GRANT SELE@#@substr($stext,10)~AQT
+GRANT SELE@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+/usr/local@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+/usr/local@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+##########@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+[client-se@#@substr($stext,10)~AQT
+port      @#@substr($stext,10)~AQT
+socket    @#@substr($stext,10)~AQT
+#default-c@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+[mariadbd]@#@substr($stext,10)~AQT
+datadir = @#@substr($stext,10)~AQT
+skip-host-@#@substr($stext,10)~AQT
+skip-name-@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+autocommit@#@substr($stext,10)~AQT
+character-@#@substr($stext,10)~AQT
+collation-@#@substr($stext,10)~AQT
+default-st@#@substr($stext,10)~AQT
+event_sche@#@substr($stext,10)~AQT
+innodb_buf@#@substr($stext,10)~AQT
+innodb_flu@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+innodb_pur@#@substr($stext,10)~AQT
+innodb_rea@#@substr($stext,10)~AQT
+join_buffe@#@substr($stext,10)~AQT
+lower_case@#@substr($stext,10)~AQT
+max_allowe@#@substr($stext,10)~AQT
+max_connec@#@substr($stext,10)~AQT
+max_connec@#@substr($stext,10)~AQT
+read_buffe@#@substr($stext,10)~AQT
+read_rnd_b@#@substr($stext,10)~AQT
+sort_buffe@#@substr($stext,10)~AQT
+table_open@#@substr($stext,10)~AQT
+tmp_table_@#@substr($stext,10)~AQT
+transactio@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+[mariadb-d@#@substr($stext,10)~AQT
+quick
+@#@substr($stext,10)~AQT
+max_allowe@#@substr($stext,10)~AQT
+default-ch@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+[mysql]
+@#@substr($stext,10)~AQT
+no-auto-re@#@substr($stext,10)~AQT
+default-ch@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+[mariadb_s@#@substr($stext,10)~AQT
+open-files@#@substr($stext,10)~AQT
+log-error=@#@substr($stext,10)~AQT
+pid-file=/@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+==========@#@substr($stext,10)~AQT
+Unzip the @#@substr($stext,10)~AQT
+ VERSION=v@#@substr($stext,10)~AQT
+ DISTRO=li@#@substr($stext,10)~AQT
+ sudo mkdi@#@substr($stext,10)~AQT
+ sudo tar @#@substr($stext,10)~AQT
+Set the en@#@substr($stext,10)~AQT
+# Nodejs
+@#@substr($stext,10)~AQT
+VERSION=v1@#@substr($stext,10)~AQT
+DISTRO=lin@#@substr($stext,10)~AQT
+export PAT@#@substr($stext,10)~AQT
+Refresh pr@#@substr($stext,10)~AQT
+. ~/.profi@#@substr($stext,10)~AQT
+Test insta@#@substr($stext,10)~AQT
+$ node -v@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+$ npm vers@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+$ npx -v
+@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+the normal@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+sudo ln -s@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+sudo ln -s@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+sudo ln -s@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+==========@#@substr($stext,10)~AQT
+B. Decompr@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+tar xvf pm@#@substr($stext,10)~AQT
+At this po@#@substr($stext,10)~AQT
+/usr/local@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+C. It\xE2\@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+The first @#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+ln -s /usr@#@substr($stext,10)~AQT
+ln -s /usr@#@substr($stext,10)~AQT
+ln -s /usr@#@substr($stext,10)~AQT
+ln -s /usr@#@substr($stext,10)~AQT
+Step 2: ad@#@substr($stext,10)~AQT
+
+@#@substr($stext,10)~AQT
+ln -s /usr@#@substr($stext,10)~AQT
+Test it, e@#@substr($stext,10)~AQT

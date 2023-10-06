@@ -1,6 +1,6 @@
 "use strict";
 
-const  { parentPort, threadId,  workerData } = require('worker_threads');
+const { parentPort, threadId, workerData } = require('worker_threads');
 const moment = require('moment');
 const iconv = require('iconv-lite');
 const http = require('follow-redirects').http;
@@ -9,43 +9,44 @@ moment.prototype.toSqlfmt = function (ms) {
   return this.format('YYYY-MM-DD HH:mm:ss.' + ms);
 };
 
-let con ;
-(async ()=> {
+let con;
+(async () => {
   con = await require('../db/db_con1');
   // console.log(threadId,"db connected") ;
-  process.on('SIGTERM', con.end );
-  parentPort.postMessage({ready:1}) ;
+  process.on('SIGTERM', con.end);
+  parentPort.postMessage({ ready: 1 });
 })();
 const ckMap = new Map();
 // const {tcode, cond, dbskip, interval, limit, loop } = workerData ;
-let param = workerData ;
+let param = workerData;
 
 // console.log("thread id:",threadId, param);
 
 parentPort.on('message', (pkey) => {
   if (pkey?.svCook) {
-    saveCookie(pkey.svCook) ;
-    return ;
+    saveCookie(pkey.svCook, pkey.svKey);
+    return;
   }
   // console.log(pkey) ;
   con.query("SELECT t.tcode, t.pkey,o_stime, if( ifnull(m.thost2,IFNULL(c.thost,''))>'',ifnull(m.thost2,c.thost) ,dstip) dstip," +
-  " if(ifnull(m.tport2,IFNULL(c.tport,0))>0, ifnull(m.tport2,c.tport), dstport) dstport,uri,method,sdata, rlen " +
-  "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
-  "where t.pkey = ? ", [pkey])
-  .then( rdata =>  dataHandle(rdata[0]) ) ;
-  
+    " if(ifnull(m.tport2,IFNULL(c.tport,0))>0, ifnull(m.tport2,c.tport), dstport) dstport,uri,method,sdata, rlen , ifnull(c.tenv,'') encval " +
+    "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
+    "where t.pkey = ? ", [pkey])
+    .then(rdata => dataHandle(rdata[0]));
+
 });
 
-function dataHandle(rdata ) {
-  let sdataStr = rdata.sdata.toString();
+function dataHandle(rdata) {
+  let sdataStr = rdata.encval.length > 1 ? iconv.decode(rdata.sdata, rdata.encval).toString() : rdata.sdata.toString();
   if (! /^(GET|POST|DELETE|PUT|PATCH)\s+(\S+)\s/s.test(sdataStr)) {
-    parentPort.postMessage({ready:1}) ;
-    return ;
+    parentPort.postMessage({ ready: 1 });
+    return;
   }
 
   let uri = /^(GET|POST|DELETE|PUT|PATCH)\s+(\S+)\s/s.exec(sdataStr)[2];
   if (uri.indexOf('%') == -1) uri = encodeURI(uri);
   if (/[^a-z0-9\:\/\?\#\[\]\@\!\$\&\'\(\)\*\+\,\;\=\.\-\_\~\%]/i.test(uri)) {
+    rdata.encval = 'euc-kr';
     sdataStr = iconv.decode(rdata.sdata, 'EUC-KR').toString();
     uri = /^(GET|POST|DELETE|PUT|PATCH)\s+(\S+)\s/s.exec(sdataStr)[2];
     uri = encodeURI(iconv.encode(uri, 'EUC-KR'));
@@ -53,7 +54,7 @@ function dataHandle(rdata ) {
   }
   if (/[^a-z0-9\:\/\?\#\[\]\@\!\$\&\'\(\)\*\+\,\;\=\.\-\_\~\%]/i.test(uri)) {
     console.log(PGNM + "%s ** inValid URI : %s , uid=%d", rdata.tcode, uri, rdata.pkey);
-    parentPort.postMessage({ready:1}) ;
+    parentPort.postMessage({ ready: 1 });
     return;
   }
   const options = {
@@ -71,7 +72,7 @@ function dataHandle(rdata ) {
   const shead2 = shead.split('\r\n');
   let new_shead = shead2[0] + '\r\n';
   // console.log(PGNM,shead2) ;
-  for(const v of shead2) {
+  for (const v of shead2) {
     const kv = v.split(':');
     // if (/(Content-Type|Referer|upgrade-Insecure-Requests|Accept|Cookie)/.test(kv[0])) {
     if (! /^(GET|POST|DELETE|PUT|PATCH|Host)\b/i.test(kv[0])) {
@@ -112,8 +113,8 @@ function dataHandle(rdata ) {
     for (const [key, value] of Object.entries(res.headers)) {
       resHs += `${key}: ${value}\r\n`;
       if (/set-cookie/i.test(key)) {
-        saveCookie(`${value}`) ;
-        parentPort.postMessage({svCook:value}) ;
+        // saveCookie(`${value}`,rdata.dstip+":"+rdata.dstport);
+        parentPort.postMessage({ svCook: value, svKey: rdata.dstip+":"+rdata.dstport});
       }
     };
 
@@ -125,7 +126,7 @@ function dataHandle(rdata ) {
 
     res.on('timeout', () => {
       // console.log(PGNM,'socket timeout');
-      res.emit('error', new Error('Client timeout')) ;
+      res.emit('error', new Error('Client timeout'));
       res.end();
     });
     res.on('data', function (chunk) {
@@ -135,35 +136,38 @@ function dataHandle(rdata ) {
       // console.log("* res end *",rdata.uri) ;
       if (param.dbskip) {
         // console.log("skip ok",rdata.uri)
-        parentPort.postMessage({ready:1}) ;
+        parentPort.postMessage({ ready: 1 });
         return;
       }
       const rtimem = Math.ceil(process.hrtime()[1] / 1000);
       const rtime = moment();
       if (rtimem < stimem && stime.isSameOrAfter(rtime, 'second')) rtime.add('1', 's');
-      const svctime = moment.duration(rtime.diff(stime)).asSeconds() ;
-      
+      const svctime = moment.duration(rtime.diff(stime)).asSeconds();
+
       let rDatas = Buffer.concat(recvData);
       const rsz = res.headers['content-length'] || rDatas.length;
 
       // console.log(PGNM, stime.toSqlfmt(), rtime.toSqlfmt(), svctime, 'id=',rdata.pkey, 'rcv len=', rsz );
       // let new_d = Buffer.from(resdata,'binary') ;
-       con.query("UPDATE ttcppacket SET \
+      con.query("UPDATE ttcppacket SET \
                     rdata = ?, sdata = ?, stime = ?, rtime = ?,  elapsed = ?, rcode = ? ,rhead = ?, rlen = ? ,cdate = now() where pkey = ? "
         , [rDatas, Buffer.from(new_shead), stime.toSqlfmt(stimem), rtime.toSqlfmt(rtimem), svctime, res.statusCode, resHs, rsz, rdata.pkey])
-          .catch(err => {
-            console.error(PGNM, 'update error:', rdata.pkey, err);
-            parentPort.postMessage({err:1});
-           }) 
-          .then(parentPort.postMessage({ok:1})) ;
+        .catch(err => {
+          console.error(PGNM, 'update error:', rdata.pkey, err);
+          parentPort.postMessage({ err: 1 });
+        })
+        .then(parentPort.postMessage({ ok: 1 }));
     });
   });
-  
+
   if (pi > 0 && /POST|PUT|DELETE|PATCH/.test(rdata.method)) {
-    const sdata = sdataStr.slice(pi + 4);
+    const sdata = rdata.encval.length > 1 ? iconv.encode(sdataStr.slice(pi + 4), rdata.encval) : sdataStr.slice(pi + 4);
 
     req.write(sdata);
-    new_shead += '\r\n' + sdata.toString();
+    if (rdata.encval.length > 1)
+      new_shead = Buffer.concat([Buffer.from(iconv.encode(new_shead + '\r\n', rdata.encval)), sdata]);
+    else
+      new_shead += '\r\n' + sdata;
   }
   req.on('error', (e) => {
     // console.error(PGNM, e.message, e.errno);
@@ -171,16 +175,16 @@ function dataHandle(rdata ) {
     const rtimem = Math.ceil(process.hrtime()[1] / 1000);
 
     if (rtimem < stimem && stime.isSameOrAfter(rtime, 'second')) rtime.add('1', 's');
-    const svctime = moment.duration(rtime.diff(stime)).asSeconds() ;
+    const svctime = moment.duration(rtime.diff(stime)).asSeconds();
 
     if (!param.dbskip)
       con.query("UPDATE ttcppacket SET \
                       sdata = ?,  stime = ?, rtime = ?,  elapsed = ?, rcode = ? , rhead = ? , cdate = now() where pkey = ?"
         , [Buffer.from(new_shead), stime.toSqlfmt(stimem), rtime.toSqlfmt(rtimem), svctime, 999, e.message, rdata.pkey])
-        .catch(err =>   console.error(PGNM,'update error:', err));
+        .catch(err => console.error(PGNM, 'update error:', err));
 
-        ;
-    parentPort.postMessage({err:1}) ;
+    ;
+    parentPort.postMessage({ err: 1 });
   });
   req.end();
 
@@ -202,34 +206,35 @@ function dataHandle(rdata ) {
 
   }
 
-  function parseCookies(cookie = '') {
-    // console.log("cookie : ",cookie);
-    return cookie
-      .split(';')
-      .map(v => v.split('='))
-      .map(([k, ...vs]) => [k, vs.join('=')])
-      .reduce((acc, [k, v]) => {
-        acc[k.trim()] = v; // decodeURIComponent(v);
-        return acc;
-      }, {});
-  }
-  
-  function saveCookie( cook) {
-    const ckData = parseCookies(cook);
-    const path = ckData.Path || '/';
-    let sv_ckData = ckMap.get(rdata.dstip + ':' + rdata.dstport) || {};
-    let xdata = sv_ckData[path] || {};
-    for (const k in ckData) {
-      if (/Path|HttpOnly|Secure/.test(k)) continue;
-      xdata[k] = ckData[k];
-    }
-  
-    sv_ckData[path] = xdata;
-    ckMap.set(rdata.dstip + ":" + rdata.dstport, sv_ckData);
-  
-  }
-    
 }
 
-process.on('SIGINT', parentPort.close );
+function parseCookies(cookie = '') {
+  // console.log("cookie : ",cookie);
+  return cookie
+    .split(';')
+    .map(v => v.split('='))
+    .map(([k, ...vs]) => [k, vs.join('=')])
+    .reduce((acc, [k, v]) => {
+      acc[k.trim()] = v; // decodeURIComponent(v);
+      return acc;
+    }, {});
+}
+
+function saveCookie(cook,svkey) {
+  if (typeof cook !== 'string' ) return ;
+  const ckData = parseCookies(cook);
+  const path = ckData.Path || '/';
+  let sv_ckData = ckMap.get(svkey) || {};
+  let xdata = sv_ckData[path] || {};
+  for (const k in ckData) {
+    if (/Path|HttpOnly|Secure/.test(k)) continue;
+    xdata[k] = ckData[k];
+  }
+
+  sv_ckData[path] = xdata;
+  ckMap.set(svkey, sv_ckData);
+
+}
+
+process.on('SIGINT', parentPort.close);
 
