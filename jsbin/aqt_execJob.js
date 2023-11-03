@@ -51,7 +51,7 @@ async function importData(row) {
 }
 
 function sendData(row) {
-  con.query("SELECT lvl FROM TMASTER WHERE CODE = ?", [row.tcode])
+  con.query("SELECT lvl,if(pro='1','HTTP',IF(pro='2','UDP','TCP')) pro FROM TMASTER WHERE CODE = ?", [row.tcode])
     .then(async dat => {
       if (dat[0].lvl == '0') {
         console.log(PGNM, "Origin ID 는 테스트 불가합니다.");
@@ -62,7 +62,7 @@ function sendData(row) {
       console.log(PGNM, "pid=>", process.pid);
       
       let param = {
-        tcode: row.tcode, cond: row.etc, conn: await con.getConnection(), tnum:row.tnum
+        tcode: row.tcode, cond: row.etc, conn: await con.getConnection(), tnum:row.tnum, aqttype:dat[0].pro
         , limit: row.limits, interval: row.reqnum, loop: row.repnum , dbskip: row.dbskip == '1', jobId: row.pkey
       };
       new sendMain(param);

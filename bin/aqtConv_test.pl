@@ -82,7 +82,7 @@ sub file_anal{
 
     LOOP1: while ( my $stext=<$FI>)
     {
-         print $FO substr($stext,0,10), "@#@", q(substr($stext,10)),"~AQT\n" ;
+         print $FO substr($stext,0,10), "@#@", substr($stext,10),"~AQT\n" ;
 
     }
 

@@ -5,16 +5,18 @@ const Dsec = /^\d+$/.test(process.argv[2]) ? process.argv[2] * 1 : 5;
 let con;
 let cnt=0;
 const { Worker, workerData } = require('worker_threads');
-const threads = new Array();
+const threads_h = new Array();
+const threads_t = new Array();
 
 async function main() {
-  thread_start();
+  thread_start(threads_t,'/lib/tcpRequest.js');
+  thread_start(threads_h,'/lib/httpRequest.js');
   con = await require('./db/db_con1') ;
   console.log("%s * start Resend check (%d 초 단위)", PGNM, Dsec);
   // const sendhttp = require('./lib/sendHttp') ;
   setInterval(() => {
 
-    const qstream = con.queryStream("SELECT pkey FROM trequest order by reqDt  ");
+    const qstream = con.queryStream("SELECT a.pkey, t.proto FROM trequest a join ttcppacket t on(a.pkey = t.pkey) order by a.reqDt  ");
     qstream.on("error", err => {
       console.log(PGNM, err); //if error
     });
@@ -25,7 +27,7 @@ async function main() {
       qstream.pause();
 
       let ichk = setInterval(() => {
-        const th = threads.find(t => t.busy == 0);
+        const th = row.proto == '1' ? threads_h.find(t => t.busy == 0) : threads_t.find(t => t.busy == 0) ;
         if (th) {
           clearInterval(ichk);
           th.busy = 1;
@@ -43,14 +45,14 @@ async function main() {
 
 }
 
-function thread_start() {
+function thread_start(threads, TYPEF) {
   const aqttimeout = process.env.AqtTimeOut || 30000;
   const wdata = { workerData: { dbskip: false, aqttimeout } };
-  let TYPEF ;
-  if (process.env.AQTTYPE === 'TCP')
-    TYPEF = '/lib/tcpRequest.js';
-  else
-    TYPEF = '/lib/httpRequest.js';
+  // let TYPEF ;
+  // if (process.env.AQTTYPE === 'TCP')
+  //   TYPEF = '/lib/tcpRequest.js';
+  // else
+  //   TYPEF = '/lib/httpRequest.js';
 
   
   for (let i = 0; i < 5; i++) {
@@ -63,7 +65,7 @@ function thread_start() {
         const i = threads.findIndex(w => w.wkthread == wkthread);
         if (i !== -1) threads.splice(i, 1);
 
-        // console.log(PGNM, i, `Thread exiting, ${threads.length} running...`);
+        // console.log(PGNM, i, `Thread exiting, ${threads_t.length} running...`);
         if (threads.length == 0) {
           console.log(PGNM, 'thread all ended !!')
         }

@@ -66,14 +66,14 @@ module.exports = function (args) {
         let ret = decoders.Ethernet(packet.data);
         let ptime = moment.unix(packet.header.timestampSeconds).format('YYYY-MM-DD HH:mm:ss') + '.' + packet.header.timestampMicroseconds;
         let buffer = packet.data;
-        /*         if (ltype == 0) {
+                 if (ltype == 0) {
                     ret.offset = 4 ;
                     ret.info.type = PROTOCOL.ETHERNET.IPV4 ;
                 } else if (ltype == 113) {
                     ret.offset = 16 ;
                     ret.info.type = PROTOCOL.ETHERNET.IPV4 ;
                 }
-         */
+        
         //            console.log(PGNM,packet.header, ret.info );
         if (1 || ret.info.type === PROTOCOL.ETHERNET.IPV4) {
             // console.log(PGNM,packet.data );
@@ -93,7 +93,6 @@ module.exports = function (args) {
                 ret = decoders.TCP(buffer, ret.offset);
                 // console.log(PGNM,' from port: ' + ret.info.srcport + ' to port: ' + ret.info.dstport);
                 datalen -= ret.hdrlen;
-                if (datalen <= 0) return;
                 // console.log(PGNM,'seqno ', ret.info.seqno, 'ackno ', ret.info.ackno, 'datalen ', datalen, ' next ', ret.info.seqno + datalen);
                 // console.log(PGNM,ret) ;
                 // console.log(PGNM,buffer.toString('binary', ret.offset, ret.offset + datalen));
@@ -112,6 +111,7 @@ module.exports = function (args) {
                         myMap.set(ky2, datas);
                         return;
                     }
+                    if (datalen <= 0) return;
 
                     let sdata = buffer.slice(ret.offset);
 
@@ -132,6 +132,7 @@ module.exports = function (args) {
                         seqno: ret.info.seqno,
                         ackno: ret.info.ackno,
                         rdata: '',
+                        proto:'0',
                         isUTF8: true
                     };
                     let sky = ky;
@@ -149,8 +150,8 @@ module.exports = function (args) {
                         datas.rdata = Buffer.concat([datas.rdata, buffer.slice(ret.offset)]);
                     else
                         datas.rdata = buffer.slice(ret.offset);
-
-                    if (ip_totlen < 1400) {
+                    
+                    if (datas.rdata.length > 5 && ip_totlen < 1400 && datas.rdata.readUInt16BE() != 0x4142 && datas.rdata.readUInt8(4) != 4  ) {
                         myMap.delete(ky);
                         // console.log("del map", ky) ;
                         // if ( datas.seqno == 250453720 ) {
@@ -164,30 +165,58 @@ module.exports = function (args) {
                 }
 
             } else if (ret.info.protocol === PROTOCOL.IP.UDP) {
-                console.log(PGNM, 'Decoding UDP ...');
+                // console.log(PGNM, 'Decoding UDP ...');
 
                 ret = decoders.UDP(buffer, ret.offset);
-                console.log(PGNM, ' from port: ' + ret.info.srcport + ' to port: ' + ret.info.dstport);
+                // console.log(PGNM, ' from port: ' + ret.info.srcport + ' to port: ' + ret.info.dstport);
 
-                console.log(PGNM, buffer.toString('binary', ret.offset, ret.offset + ret.info.length));
+                // console.log(PGNM, buffer.toString('binary', ret.offset, ret.offset + ret.info.length));
+                let datas = {
+                    tcode: args.tcode,
+                    method: '',
+                    uri: '',
+                    o_stime: ptime,
+                    stime: ptime,
+                    rtime: ptime,
+                    sdata: buffer.slice(ret.offset, ret.offset + ret.info.length ),
+                    slen: ret.info.length,
+                    rlen: 0,
+                    srcip: srcip,
+                    dstip: dstip,
+                    srcport: ret.info.srcport,
+                    dstport: ret.info.dstport,
+                    seqno: 0,
+                    ackno: 0,
+                    rdata: '',
+                    proto: '2'
+                };
+                await insert_data(datas);
+
             } else
                 ; //console.log(PGNM,'Unsupported IPv4 protocol: ' + PROTOCOL.IP[ret.info.protocol]);
         } else
             console.log(PGNM, 'Unsupported Ethertype: ' + PROTOCOL.ETHERNET[ret.info.type], ret.info.type);
-
 
     });
 
     parser.on('end', () => { setTimeout(endprog, 1000) });
 
     async function insert_data(datas) {
+        let rcd = 0;
+        let emsg = null ;
+        // AJP 일때 응답코드값 
+        if (datas.rdata.length > 5 && datas.rdata.readUInt16BE() == 0x4142 && datas.rdata.readUInt8(4) == 4) {
+            rcd = datas.rdata.readUInt16BE(5) ;
+            if (rcd > 399)  emsg = datas.rdata.subarray(9,10+datas.rdata.readUInt16BE(7)).toString() ;
+        }
+    
         return con.query("INSERT INTO TLOADDATA \
-			(TCODE, O_STIME,STIME,RTIME, SRCIP,SRCPORT,DSTIP,DSTPORT,PROTO, METHOD,URI,SEQNO,ACKNO,slen,rlen,SDATA,RDATA) \
+			(TCODE, O_STIME,STIME,RTIME, SRCIP,SRCPORT,DSTIP,DSTPORT,PROTO, METHOD,URI,SEQNO,ACKNO,slen,rlen,SDATA,RDATA,rcode,errinfo) \
 			values \
-			( ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?) ;",
-            [args.tcode, datas.o_stime, datas.stime, datas.rtime, datas.srcip, datas.srcport, datas.dstip, datas.dstport, '0',
+			( ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?) ;",
+            [args.tcode, datas.o_stime, datas.stime, datas.rtime, datas.srcip, datas.srcport, datas.dstip, datas.dstport, datas.proto,
             datas.method, datas.uri, datas.seqno, datas.ackno, datas.slen,
-            datas.rdata.length, datas.sdata, datas.rdata])
+            datas.rdata.length, datas.sdata, datas.rdata, rcd, emsg])
             .then(row => {
                 icnt++;
                 icnt % 1000 == 0 && console.log(PGNM + "** insert ok %d 건", icnt);
@@ -231,9 +260,9 @@ module.exports = function (args) {
             default:
                 return;
         }
-        sz = datas.sdata.readUInt16BE(6);
-        let sz2 = datas.sdata.readUInt16BE(6+sz+1);
-        datas.uri = datas.sdata.subarray(6+sz+3,sz2) ;
+        sz = datas.sdata.readUInt16BE(6); // protocol size -> HTTP/1.1
+        let sz2 = datas.sdata.readUInt16BE(8+sz+1); // URI SIZE
+        datas.uri = datas.sdata.subarray(8+sz+3,8+sz+3+sz2) ;
 
     }
 

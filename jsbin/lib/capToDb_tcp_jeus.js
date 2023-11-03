@@ -225,10 +225,10 @@ module.exports = function (args) {
         let bdata = datas.sdata.slice(96) ;
         let sdata = "";
         datas.uri = '';
-        let hd1 = /0004M([A-Z]+)00/.exec(bdata) ;
+        let hd1 = /000[34]M([A-Z]+)00/.exec(bdata) ;
         if (hd1) sdata = hd1[1] + " "  ;
         datas.method = hd1[1] ;
-        hd1 = /002\dR(.+?)00\d\d[C-R]/.exec(bdata) ;
+        hd1 = /00[02]\dR(.+?)00\d\d[C-R]/.exec(bdata) ;
         if (hd1) {
             sdata += hd1[1] + " "  ;
             try {
@@ -243,7 +243,7 @@ module.exports = function (args) {
         hd1 =  /0008P(.+?)00\d\d[C-R]/.exec(bdata) ;
         if (hd1) sdata += hd1[1]   ;
         sdata += "\r\n"; 
-        [18,21,29,32,27,23,50,33].forEach( (x) => {
+        [18,20,21,29,32,27,23,50,33,53].forEach( (x) => {
             let re = new RegExp("00" + x + "H(.+?)(?=00\\d\\d[C-R]|0000)") ;
             let hl = re.exec(bdata) ;
             if (hl) {

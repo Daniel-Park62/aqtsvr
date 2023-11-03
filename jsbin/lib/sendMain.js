@@ -101,8 +101,11 @@ module.exports = function (param) {
 
   function thread_start(param) {
     let TYPEF ;
-    if (process.env.AQTTYPE === 'TCP')
+    // if (process.env.AQTTYPE === 'TCP')
+    if (param.aqttype === 'TCP')
       TYPEF = '/tcpRequest.js';
+    else  if (param.aqttype === 'UDP')
+      TYPEF = '/udpRequest.js';
     else
       TYPEF = '/httpRequest.js';
 
@@ -127,7 +130,7 @@ module.exports = function (param) {
       wkthread.on('error', (err) => {
         console.log(PGNM, "Thread error ", err);
         if (param.hasOwnProperty('jobId'))
-          con.query("UPDATE texecjob set resultstat = 3, msg = concat(msg, ?, now(),':', ?,'\r\n'), endDt = now() where pkey = ?", [msgs, err, param.joId]);
+          con.query("UPDATE texecjob set resultstat = 3, msg = concat(msg, ?, now(),':', ?,'\r\n'), endDt = now() where pkey = ?", [msgs, err, param.jobId]);
       });
       wkthread.on('message', (dat) => {
         // console.log(PGNM, "Thread data ", dat);

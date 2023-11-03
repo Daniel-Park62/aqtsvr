@@ -21,9 +21,9 @@ let param = workerData;
 
 // console.log("thread id:",threadId, param);
 
-parentPort.on('message', (pkey) => {
+parentPort.on('message',async (pkey) => {
 
-  // console.log(pkey) ;
+  if (!con.isValid()) con = await require('../db/db_con1');
   con.query("SELECT t.tcode, t.pkey,o_stime, if( ifnull(m.thost2,IFNULL(c.thost,''))>'',ifnull(m.thost2,c.thost) ,dstip) dstip," +
     " if(ifnull(m.tport2,IFNULL(c.tport,0))>0, ifnull(m.tport2,c.tport), dstport) dstport,uri,sdata, rlen " +
     "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
@@ -33,7 +33,7 @@ parentPort.on('message', (pkey) => {
 });
 
 function dataHandle(rdata) {
-
+  let recvData = [];
   let stime = moment();
   let stimem = Math.floor(process.hrtime()[1] / 1000);
   // Create a new TCP client.
@@ -68,10 +68,12 @@ function dataHandle(rdata) {
     // recvData[0] = bufTrim(recvData[0]);
     let rDatas = Buffer.concat(recvData);
     const rsz = rDatas.length;
+    let rcd = 1;
+    if (rsz > 6 && rDatas.readUInt16BE() == 0x4142 && rDatas.readUInt8(4) == 4) rcd = rDatas.readUInt16BE(5) ;
 
     con.query("UPDATE ttcppacket SET \
 						rdata = ?, stime = ?, rtime = ?,  elapsed = ?, rcode = ? ,rlen = ? ,cdate = now() where pkey = ? "
-      , [rDatas, stime.toSqlfmt(stimem), rtime.toSqlfmt(rtimem), svctime, 1, rsz, rdata.pkey])
+      , [rDatas, stime.toSqlfmt(stimem), rtime.toSqlfmt(rtimem), svctime, rcd, rsz, rdata.pkey])
       .catch(err => {
         console.error(PGNM,'update error:', rdata.pkey, err);
         parentPort.postMessage({ err: 1 });
