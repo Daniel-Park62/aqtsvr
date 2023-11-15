@@ -3,7 +3,7 @@
 const MAX_RESP_LEN = 1024 * 1024 * 2;
 const SIZE_BLOB = 1024 * 1024 * 2;
 const PGNM = '[capToDb_tcp]';
-let con;
+const con = require('../db/db_con');
 
 // process.on('SIGTERM', endprog);
 process.on('warning', (warning) => {
@@ -15,7 +15,7 @@ let icnt = 0;
 
 module.exports = function (args) {
 
-    con = args.conn;
+    // con = args.conn;
     const patt1 = new RegExp(args.dstip);
     const patt2 = new RegExp(args.dstport.length > 0 ? args.dstport : '.');
 
@@ -240,7 +240,7 @@ module.exports = function (args) {
         myMap.clear();
         console.log("%s *** Import completed (%d 건)***", PGNM, icnt);
 
-        await con.end();
+        // await con.end();
 
         process.exit();
 

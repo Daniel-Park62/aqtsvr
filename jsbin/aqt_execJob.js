@@ -13,7 +13,7 @@ moment.prototype.toSqlfmt = function () {
 // const client = new net.Socket();
 
 
-console.log(PGNM, "* start Execute Job");
+console.log(PGNM,(new Date()).toLocaleString(), "* start Execute Job");
 
 setInterval(() => {
   con.query("select pkey, jobkind, tcode, tnum,dbskip, exectype,etc,in_file, \
@@ -23,7 +23,7 @@ setInterval(() => {
       if (rows.length == 0) return;
 
       con.query("UPDATE texecjob set resultstat = 1, startDt = now(), endDt = null where pkey = ?", [rows[0].pkey])
-        .catch(err => console.error(err));
+        .catch(err => console.error((new Date()).toLocaleString(),err));
 
 
       if (rows[0].jobkind == 1)
@@ -33,7 +33,7 @@ setInterval(() => {
 
     })
     .catch(err => {
-      console.log(PGNM, err);
+      console.log(PGNM,(new Date()).toLocaleString(), err);
       process.exit(1);
     });
 
@@ -54,12 +54,12 @@ function sendData(row) {
   con.query("SELECT lvl,if(pro='1','HTTP',IF(pro='2','UDP','TCP')) pro FROM TMASTER WHERE CODE = ?", [row.tcode])
     .then(async dat => {
       if (dat[0].lvl == '0') {
-        console.log(PGNM, "Origin ID 는 테스트 불가합니다.");
+        console.log(PGNM, (new Date()).toLocaleString(),"Origin ID 는 테스트 불가합니다.");
         con.query("UPDATE texecjob set resultstat = 3, msg = 'Origin ID 는 테스트 불가합니다.', endDt = now() where pkey = ?", [row.pkey]);
         return;
       }
       const sendMain = require('./lib/sendMain');
-      console.log(PGNM, "pid=>", process.pid);
+      console.log(PGNM, (new Date()).toLocaleString(), "pid=>", process.pid);
       
       let param = {
         tcode: row.tcode, cond: row.etc, conn: await con.getConnection(), tnum:row.tnum, aqttype:dat[0].pro
@@ -68,13 +68,13 @@ function sendData(row) {
       new sendMain(param);
     })
     .catch(err => {
-      console.log(PGNM, err);
+      console.log(PGNM,(new Date()).toLocaleString(), err);
       con.query("UPDATE texecjob set resultstat = 3, msg = concat(?,now(),':',?,'\r\n' ), endDt = now() where pkey = ?", [row.msg, err, row.pkey]);
     });
 }
 
 function endprog() {
-  console.log(PGNM, "## Exec job program End");
+  console.log(PGNM, (new Date()).toLocaleString(),"## Exec job program End");
   con.end();
   process.exit(0)
 }
@@ -83,4 +83,4 @@ process.on('SIGINT', endprog);
 // process.on('SIGKILL',() => { console.log('KILL'); endprog; process.exit(0) } ); 
 
 process.on('SIGTERM', endprog);
-process.on('uncaughtException', (err) => { console.log(PGNM, 'uncaughtException:', err); process.exit(1) });
+process.on('uncaughtException', (err) => { console.log(PGNM,(new Date()).toLocaleString(), 'uncaughtException:', err); process.exit(1) });

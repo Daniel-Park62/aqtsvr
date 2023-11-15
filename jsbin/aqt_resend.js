@@ -12,6 +12,7 @@ async function main() {
   thread_start(threads_t,'/lib/tcpRequest.js');
   thread_start(threads_h,'/lib/httpRequest.js');
   con = await require('./db/db_con1') ;
+  console.log(PGNM,(new Date()).toLocaleString());
   console.log("%s * start Resend check (%d 초 단위)", PGNM, Dsec);
   // const sendhttp = require('./lib/sendHttp') ;
   setInterval(() => {
@@ -67,11 +68,11 @@ function thread_start(threads, TYPEF) {
 
         // console.log(PGNM, i, `Thread exiting, ${threads_t.length} running...`);
         if (threads.length == 0) {
-          console.log(PGNM, 'thread all ended !!')
+          console.log(PGNM, (new Date()).toLocaleString(),'thread all ended !!')
         }
       });
     wkthread.on('error', (err) => {
-      console.log(PGNM, "Thread error ", err);
+      console.log(PGNM,(new Date()).toLocaleString(), "Thread error ", err);
     });
     wkthread.on('message', (dat) => {
       // console.log(PGNM, "Thread data ", dat,cnt);
@@ -94,7 +95,7 @@ function thread_start(threads, TYPEF) {
 }
 
 function endprog() {
-  console.log(PGNM, "program End", cnt,"건 수행");
+  console.log(PGNM, (new Date()).toLocaleString(),"program End", cnt,"건 수행");
   // child.kill('SIGINT') ;
   con.end();
   process.exit(0) ;

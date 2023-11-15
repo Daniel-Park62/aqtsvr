@@ -27,7 +27,8 @@ parentPort.on('message', (pkey) => {
     saveCookie(pkey.svCook, pkey.svKey);
     return;
   }
-  console.log(PGNM,pkey) ;
+  
+  // console.log(PGNM,pkey) ;
   con.query("SELECT t.tcode, t.pkey,o_stime, if( ifnull(m.thost2,IFNULL(c.thost,''))>'',ifnull(m.thost2,c.thost) ,dstip) dstip," +
     " if(ifnull(m.tport2,IFNULL(c.tport,0))>0, ifnull(m.tport2,c.tport), dstport) dstport,uri,method,sdata, rlen , ifnull(c.tenv,'') encval " +
     "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
