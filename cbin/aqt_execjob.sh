@@ -37,7 +37,7 @@ fi
 
 limits=${limits##* }
 echo "limits=[$limits]"
-if [[ ${limits} > "" ]]; then
+if [[ ${limits} > " " ]]; then
 	COND="-u ${limits} $COND" ;
 	echo $COND;
 fi

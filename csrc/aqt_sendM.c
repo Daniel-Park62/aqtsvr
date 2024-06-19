@@ -430,7 +430,7 @@ static int update_db_fail(unsigned long pkey, char *rcvdata, long rlen, char *st
 
   _iFailCnt++;
 
-  if (rlen > 8)
+  if (rlen > 0)
   {
     ilen = (rlen > MAXLN2M ? MAXLN2M : rlen);
     mysql_real_escape_string(conn, cbuf, rcvdata, ilen);

@@ -124,7 +124,7 @@ module.exports = function (param) {
 
           // console.log(PGNM, i, `Thread exiting, ${threads.length} running...`);
           if (threads.length == 0) {
-            console.log(PGNM, 'thread all ended !!')
+            console.log(PGNM,(new Date()).toLocaleString(), 'thread all ended !!')
           }
         });
       wkthread.on('error', (err) => {
@@ -149,7 +149,7 @@ module.exports = function (param) {
       // wkthread.postMessage(wdata) ;
 
     }
-    console.log("threads:", threads.length, wdata.workerData);
+    console.log((new Date()).toLocaleString(), "threads:", threads.length, wdata.workerData);
 
   }
 

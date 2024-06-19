@@ -335,7 +335,7 @@ int main(int argc, char *argv[])
       0,
   };
   snprintf(query, 2000, "SELECT %s, DATE_FORMAT(ifnull(t.o_stime,now()) ,'%%H%%i%%s'), UNIX_TIMESTAMP(o_stime) "
-                        " FROM ttcppacket t USE INDEX(tcode) join tservice s on (t.uri = s.svcid and s.appid ='') "
+                        " FROM ttcppacket t USE INDEX(tcode) join tservice s on (t.uri = s.svcid and s.appid = t.appid) "
                         " WHERE t.tcode = '%s'  %s %s ORDER BY %s %s ",
            (_mtype == 3 ? "t.cmpid" : "t.pkey"),
            _test_code, cond_svcid, cond_etc, (_test_code[0] == 'Z' ? "rand()" : "t.o_stime"), cond_limit);

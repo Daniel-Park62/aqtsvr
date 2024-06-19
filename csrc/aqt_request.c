@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
     char query[2048] = {
         0,
     };
-    strcpy(query, "SELECT pkey FROM trequest ORDER BY reqdt LIMIT 10 ");
+    strcpy(query, "SELECT pkey FROM trequest JOIN tmaster ON(CODE = tcode AND pro = '3') ORDER BY reqdt LIMIT 10 ");
 
     if (mysql_query(conn, query))
     {

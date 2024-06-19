@@ -8,7 +8,7 @@ use File::Copy;
 use Getopt::Std;
 sub Usage {
   die <<END
-  $0 -i대상파일 [-e] [-c dir] 디렉토리 검색파일
+  $0 [-e] [-c dir] 디렉토리 검색파일
   -e : update
   -c dir : Dir to save orginal source
   
@@ -18,29 +18,18 @@ sub Usage {
 END
 ;
 }
-#my %ipNhost=map{my($a,$b) = split(/\s+/,$_); $a => $b} <DATA> ;
+my %ipNhost=map{my($a,$b) = split(/\s+/,$_); $a => $b} <DATA> ;
 =cut
 print join(",", keys %ipNhost),"\n" ;
 print join(",", values %ipNhost),"\n" ;
 =cut
 Usage() if ($#ARGV < 1) ;
 my %opts=();
-getopts("ec:i:",\%opts) or Usage() ;
-my %ipNhost ;
-if (! defined($opts{i})  ) {
-	%ipNhost=map{my($a,$b) = split(/\s+/,$_); $a => $b} <DATA> ;
-} else {
-	open (my $FX,"<",$opts{i}) || print STDERR "$? $opts{i}\n" && return ;
-	binmode $FX ;
-	%ipNhost=map{my($a,$b) = split(/\s+/,$_); $a => $b} <$FX> ;
-}
+getopts("ec:",\%opts) or Usage() ;
 my $reg = qr!\b(10|172|192)(?:\.\d{1,3}){3}\b!x ;
 $reg = join("|",keys %ipNhost) ;
-my $kcnt = keys %ipNhost ;
-print STDERR "대상수:$kcnt \n";
 $reg = qr!\b($reg)\b!x ;
 $| = 1;
-my $tcnt = 0 ;
 sub copy_origin ($) {
   return if (! defined($opts{c})  ) ;
   my $fname = shift;
@@ -57,7 +46,6 @@ sub file_anal {
   my @otext = <$FD>;
   my @ytext = @otext;
   my ($sw,$csw, $mcnt) = (0,0,0);
-  $tcnt++ ;
   foreach my $i (0..$#otext) {
     $ytext[$i] =~ s!/\*.*?(\*/)!! ;
     if ($ytext[$i] =~ s!/\*.*!!) {
@@ -71,7 +59,7 @@ sub file_anal {
   foreach my $i (0..$#otext) {
     my @fwarr = ();
     while ($otext[$i] !~ m!//TOBE: ! && $ytext[$i] =~ /$reg/xg) {
-      my $fword = $1 ;
+      my $fword = $& ;
       push @fwarr,$fword ;
       if ($ipNhost{$fword}) {
         $otext[$i] =~ s!$fword!$ipNhost{$fword}! ;
@@ -86,7 +74,7 @@ sub file_anal {
 		  print "${fname}:";
 	#        $otext[$i] =~ s!$! ${CHGCMT} ${fwords}!  ; # unless ( $opts{n}) ;
 	#	print "(${CHGCMT} @fwarr)\n";
-		print "\t$i\t$fwords\t$otext[$i]" ;
+		print "\t$i\t$otext[$i]" ;
 	  }
   }
   if ($mcnt) {
@@ -116,7 +104,6 @@ foreach my $fl ( @infiles )
   next if ( -B $fl) ;
   file_anal($fl) ;
 }
-print "Search Count: $tcnt\n";
 __DATA__
 bche01ip
 ezzd01ip

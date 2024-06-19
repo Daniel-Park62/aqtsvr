@@ -712,7 +712,7 @@ inline int update_db(SR_ARR *sr, char *test_code, int rcode)
 
   mysql_real_escape_string(conn, sdata, (char *)sndrec, sr_arr.slen);
 
-  if (sr->rlen > 8)
+  if (sr->rlen > 0)
   {
     ilen = (sr->rlen > MAXLN2M ? MAXLN2M : sr->rlen);
     mysql_real_escape_string(conn, rdata, (char *)sr->tux_rcvbuf, ilen);

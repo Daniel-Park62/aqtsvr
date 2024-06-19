@@ -2,4 +2,4 @@
 MARIABIN="${MARIADB_HOME}/bin"
 HOST=${AQTDBIP:+"-h ${AQTDBIP}"}
 
-${MARIABIN}/mysql ${HOST} -uaqtdb -pDawinit1! -N -Daqtdb2 -se "$1"
+${MARIABIN}/mysql ${HOST} -uaqtusr -pDawinit1! -N -Daqtdb -se "$1"

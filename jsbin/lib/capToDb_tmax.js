@@ -4,7 +4,7 @@ const MAX_RESP_LEN = 1024 * 1024 * 2;
 const SIZE_BLOB = 1024 * 1024 * 2;
 const PGNM = "capToDb_tmax";
 const { resolve } = require('path');
-let con ;
+let con;
 
 process.on('warning', (warning) => {
     console.warn(warning.name);    // Print the warning name
@@ -13,8 +13,8 @@ process.on('warning', (warning) => {
 });
 let icnt = 0;
 
-module.exports = function (args) {  
-    con = args.conn ;
+module.exports = function (args) {
+    con = args.conn;
     const patt1 = new RegExp(args.dstip);
     const patt2 = new RegExp(args.dstport.length > 0 ? args.dstport : '.');
     const patt_svc = new RegExp(args.svcid);
@@ -44,7 +44,7 @@ module.exports = function (args) {
 
         console.log(PGNM, "START tcpdump");
         const NETIP = (args.dstv ? ` && ( net ${args.dstv} ) ` : "");
-        child = spawn('tcpdump -i2 -n -s0 -w - "', ["tcp && tcp[13]&16 != 0 ", NETIP,args.otherCond ,'"'], { shell: true });
+        child = spawn('tcpdump -s0 -w - "tcp && tcp[13]&16 != 0 ', [ args.otherCond, '"'], { shell: true });
         dstobj = child.stdout;
         process.on('SIGINT', () => child.kill());
     }
@@ -57,8 +57,8 @@ module.exports = function (args) {
     let endsw = 1;
     parser.on('packet', async function (packet) {
         if (args.maxcnt > 0 && args.maxcnt <= icnt) {
-            if (endsw) { endsw = 0; endprog();}
-            return ;
+            if (endsw) { endsw = 0; endprog(); }
+            return;
         }
 
         let ret = decoders.Ethernet(packet.data);
@@ -87,15 +87,15 @@ module.exports = function (args) {
                 ret = decoders.TCP(buffer, ret.offset);
                 // console.log(PGNM,' from port: ' + ret.info.srcport + ' to port: ' + ret.info.dstport);
                 datalen -= ret.hdrlen;
-                if (datalen <= 0) return;
+
                 // console.log(PGNM,'seqno ', ret.info.seqno, 'ackno ', ret.info.ackno, 'datalen ', datalen, ' next ', ret.info.seqno + datalen);
                 // console.log(PGNM,ret) ;
                 // console.log(PGNM,buffer.toString('binary', ret.offset, ret.offset + datalen));
                 // console.log(PGNM,buffer.slice(ret.offset, ret.offset + 200).toString());
                 let ky = util.format('%s:%d:%d', srcip, ret.info.srcport, ret.info.ackno);
                 // console.log(PGNM,'Decoding TCP ...', dstip, ret.info.dstport);
-                
-                if (patt1.test(dstip) && patt2.test(ret.info.dstport.toString() )  ) {
+
+                if (patt1.test(dstip) && patt2.test(ret.info.dstport.toString())) {
                     // console.log(PGNM,srcip, dstip, ret.info.dstport);
                     // let sdata = buffer.slice(ret.offset, ret.offset + datalen);
                     if (myMap_s.has(ky) && myMap.has(myMap_s.get(ky))) {
@@ -103,7 +103,7 @@ module.exports = function (args) {
                         myMap.delete(myMap_s.get(ky));
                         let ky2 = util.format('%s:%d:%d', dstip, ret.info.dstport, ret.info.seqno + datalen);
                         datas.sdata = Buffer.concat([datas.sdata, buffer.slice(ret.offset)]);
-                        if (args.norcv && ( datas.slen <= datas.sdata.length || ret.info.flags & 0x08 ) ) {
+                        if (args.norcv && (datas.slen <= datas.sdata.length || ret.info.flags & 0x08)) {
                             insert_data(datas);
                             myMap_s.delete(ky);
                             return;
@@ -113,19 +113,19 @@ module.exports = function (args) {
                         myMap.set(ky2, datas);
                         return;
                     }
-
+                    if (datalen <= 0) return;
                     let sdat = buffer.slice(ret.offset);
                     //			console.log(sdat.slice(0,136) );
                     if (sdat.readUInt16BE() != 0x9035) return;
                     if (sdat.length < 12) return;
-                    if (sdat.readUInt32BE(8) != 2) return;
+//                    if (sdat.readUInt32BE(8) != 2) return;
                     let svcnm = sdat.slice(68, 100);
                     let ci = svcnm.indexOf(0x00);
                     if (ci != -1) svcnm = svcnm.slice(0, ci);
                     // ci = buffer.indexOf('000022b8',ret.offset+86, 'hex') ;
                     if (args.svcid && !patt_svc.test(svcnm)) return;
                     // if (ci < 0) return ;
-                    sdat = buffer.slice(ret.offset + 137);
+                    sdat = buffer.slice(ret.offset + 136);
                     if (buffer.slice(ret.offset + 100, ret.offset + 104).readUInt32BE() == 0) {
                         console.log("BUFFER:", buffer.slice(24, 40));
                         return;
@@ -151,7 +151,7 @@ module.exports = function (args) {
                         isUTF8: true
                     };
 
-                    if (args.norcv &&  datas.slen <= datas.sdata.length  ) {
+                    if (args.norcv && datas.slen <= datas.sdata.length) {
                         insert_data(datas);
                         return;
                     }
@@ -170,14 +170,14 @@ module.exports = function (args) {
                     let rdata = buffer.slice(ret.offset);
                     if (rdata.length < 100) return;
                     if (rdata.readUInt16BE() == 0x9035) {
-                        datas.rdata = rdata.slice(137);
+                        datas.rdata = rdata.slice(136);
                         datas.rlen = buffer.slice(ret.offset + 100, ret.offset + 104).readUInt32BE();
                         if (ptime > datas.stime) datas.rtime = ptime;
                     } else {
                         datas.rdata = Buffer.concat([datas.rdata, rdata]);
                     }
 
-                    if (datas.rlen <= datas.rdata.length || ret.info.flags & 0x08 ) {
+                    if (datas.rlen <= datas.rdata.length || ret.info.flags & 0x08) {
                         myMap.delete(ky);
                         // console.log("del map", ky) ;
                         // if ( datas.seqno == 250453720 ) {
@@ -215,11 +215,11 @@ module.exports = function (args) {
                 (TCODE, O_STIME,STIME,RTIME, SRCIP,SRCPORT,DSTIP,DSTPORT,PROTO, URI,SEQNO,ACKNO,slen,rlen,SDATA,RDATA) \
                 values \
                 ( ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?) ",
-                [p_tcode,  datas.o_stime, datas.stime, datas.rtime, datas.srcip, datas.srcport, datas.dstip, datas.dstport, '0',
+                [args.tcode, datas.o_stime, datas.stime, datas.rtime, datas.srcip, datas.srcport, datas.dstip, datas.dstport, '0',
                     datas.uri, datas.seqno, datas.ackno, datas.slen,
                     datas.rdata.length, datas.sdata, datas.rdata])
                 .then(dt => {
-                    icnt++;
+                    icnt += 1;
                     workTime = new Date();
                     if (icnt % 5000 == 0) {
                         console.log(PGNM + "** insert ok %s", icnt.toLocaleString().padStart(7));
@@ -234,7 +234,7 @@ module.exports = function (args) {
     }
 
     function write_rec(datas) {
-        return new Promise(function (resolve,reject) {
+        return new Promise(function (resolve, reject) {
             if (datas.slen > datas.sdata.length) reject();
             let pos = datas.sdata.indexOf(0x00);
             if (pos == -1) pos = datas.sdata.length;
@@ -243,7 +243,7 @@ module.exports = function (args) {
                 + util.format('%d', datas.ackno).padStart(15, '0') + util.format('%d', datas.slen).padStart(8, '0');
             let brec = Buffer.concat([Buffer.from(rec), datas.sdata.slice(0, pos)]);
             process.stdout.write(brec);
-            resolve(icnt++) ;
+            resolve(icnt++);
         });
     }
 

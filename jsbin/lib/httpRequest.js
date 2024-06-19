@@ -1,5 +1,4 @@
 "use strict";
-
 const { parentPort, threadId, workerData } = require('worker_threads');
 const moment = require('moment');
 const iconv = require('iconv-lite');
@@ -8,7 +7,6 @@ const PGNM = '[httpRequest]';
 moment.prototype.toSqlfmt = function (ms) {
   return this.format('YYYY-MM-DD HH:mm:ss.' + ms);
 };
-
 let con;
 (async () => {
   con = await require('../db/db_con1');
@@ -17,33 +15,36 @@ let con;
   parentPort.postMessage({ ready: 1 });
 })();
 const ckMap = new Map();
+
+let mybns = checkCon(0) ;
 // const {tcode, cond, dbskip, interval, limit, loop } = workerData ;
 let param = workerData;
-
 // console.log("thread id:",threadId, param);
-
 parentPort.on('message', (pkey) => {
   if (pkey?.svCook) {
     saveCookie(pkey.svCook, pkey.svKey);
     return;
   }
-  
-  // console.log(PGNM,pkey) ;
-  con.query("SELECT t.tcode, t.pkey,o_stime, if( ifnull(m.thost2,IFNULL(c.thost,''))>'',ifnull(m.thost2,c.thost) ,dstip) dstip," +
+  mybns = checkCon(mybns) ;
+//  console.log(PGNM,pkey) ;
+  con.query("SELECT t.tcode,t.appid, t.pkey,o_stime, if( ifnull(m.thost2,IFNULL(c.thost,''))>'',ifnull(m.thost2,c.thost) ,dstip) dstip," +
     " if(ifnull(m.tport2,IFNULL(c.tport,0))>0, ifnull(m.tport2,c.tport), dstport) dstport,uri,method,sdata, rlen , ifnull(c.tenv,'') encval " +
     "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
     "where t.pkey = ? ", [pkey])
     .then(rdata => dataHandle(rdata[0]));
-
 });
-
+function checkCon(id) {
+  if (id > 0) clearInterval(id);
+  return setInterval(() => {
+    con.query('select 1');
+  }, 30 * 60 * 1000) ;
+}
 function dataHandle(rdata) {
   let sdataStr = rdata.encval.length > 1 ? iconv.decode(rdata.sdata, rdata.encval).toString() : rdata.sdata.toString();
   if (! /^(GET|POST|DELETE|PUT|PATCH)\s+(\S+)\s/s.test(sdataStr)) {
     parentPort.postMessage({ ready: 1 });
     return;
   }
-
   let uri = /^(GET|POST|DELETE|PUT|PATCH)\s+(\S+)\s/s.exec(sdataStr)[2];
   if (uri.indexOf('%') == -1) uri = encodeURI(uri);
   if (/[^a-z0-9\:\/\?\#\[\]\@\!\$\&\'\(\)\*\+\,\;\=\.\-\_\~\%]/i.test(uri)) {
@@ -54,6 +55,7 @@ function dataHandle(rdata) {
     // if ( uri.indexOf('%') == -1) uri = encodeURI(uri) ;
   }
   if (/[^a-z0-9\:\/\?\#\[\]\@\!\$\&\'\(\)\*\+\,\;\=\.\-\_\~\%]/i.test(uri)) {
+	  console.log(PGNM,(new Date()).toLocaleString()) ;
     console.log(PGNM + "%s ** inValid URI : %s , uid=%d", rdata.tcode, uri, rdata.pkey);
     parentPort.postMessage({ ready: 1 });
     return;
@@ -105,7 +107,6 @@ function dataHandle(rdata) {
   };
   let stime = moment();
   let stimem = Math.floor(process.hrtime()[1] / 1000);
-
   const req = http.request(options, function (res) {
     // stime = moment();
     // console.log(PGNM,'STATUS: ' + res.statusCode);
@@ -118,13 +119,11 @@ function dataHandle(rdata) {
         parentPort.postMessage({ svCook: value, svKey: rdata.dstip+":"+rdata.dstport});
       }
     };
-
     // res.setEncoding('utf8');
     let recvData = [];
     // res.once('readable', () => {
     //   stime = moment() ;
     // }) ;
-
     res.on('timeout', () => {
       // console.log(PGNM,'socket timeout');
       res.emit('error', new Error('Client timeout'));
@@ -144,10 +143,8 @@ function dataHandle(rdata) {
       const rtime = moment();
       if (rtimem < stimem && stime.isSameOrAfter(rtime, 'second')) rtime.add('1', 's');
       const svctime = moment.duration(rtime.diff(stime)).asSeconds();
-
       let rDatas = Buffer.concat(recvData);
       const rsz = res.headers['content-length'] || rDatas.length;
-
       // console.log(PGNM, stime.toSqlfmt(), rtime.toSqlfmt(), svctime, 'id=',rdata.pkey, 'rcv len=', rsz );
       // let new_d = Buffer.from(resdata,'binary') ;
       con.query("UPDATE ttcppacket SET \
@@ -160,10 +157,9 @@ function dataHandle(rdata) {
         .then(parentPort.postMessage({ ok: 1 }));
     });
   });
-
   if (pi > 0 && /POST|PUT|DELETE|PATCH/.test(rdata.method)) {
     const sdata = rdata.encval.length > 1 ? iconv.encode(sdataStr.slice(pi + 4), rdata.encval) : sdataStr.slice(pi + 4);
-
+//console.log(sdata.toString());
     req.write(sdata);
     if (rdata.encval.length > 1)
       new_shead = Buffer.concat([Buffer.from(iconv.encode(new_shead + '\r\n', rdata.encval)), sdata]);
@@ -174,21 +170,20 @@ function dataHandle(rdata) {
     // console.error(PGNM, e.message, e.errno);
     const rtime = moment();
     const rtimem = Math.ceil(process.hrtime()[1] / 1000);
-
     if (rtimem < stimem && stime.isSameOrAfter(rtime, 'second')) rtime.add('1', 's');
     const svctime = moment.duration(rtime.diff(stime)).asSeconds();
-
     if (!param.dbskip)
       con.query("UPDATE ttcppacket SET \
                       sdata = ?,  stime = ?, rtime = ?,  elapsed = ?, rcode = ? , rhead = ? , cdate = now() where pkey = ?"
         , [Buffer.from(new_shead), stime.toSqlfmt(stimem), rtime.toSqlfmt(rtimem), svctime, 999, e.message, rdata.pkey])
         .catch(err => console.error(PGNM, 'update error:', err));
-
     ;
     parentPort.postMessage({ err: 1 });
   });
-  req.end();
-
+  if (rdata.appid == 'VEZ') 
+	  setTimeout(() => req.end(),30000) ;
+  else
+	req.end();
   function change_cookie(odata) {
     const ckData = parseCookies(odata);
     const sv_ck = ckMap.get(rdata.dstip + ":" + rdata.dstport);
@@ -204,11 +199,8 @@ function dataHandle(rdata) {
     let newVal = '';
     for (const [k, v] of Object.entries(ckData)) newVal += k + '=' + v + ';';
     return newVal;
-
   }
-
 }
-
 function parseCookies(cookie = '') {
   // console.log("cookie : ",cookie);
   return cookie
@@ -220,7 +212,6 @@ function parseCookies(cookie = '') {
       return acc;
     }, {});
 }
-
 function saveCookie(cook,svkey) {
   if (typeof cook !== 'string' ) return ;
   const ckData = parseCookies(cook);
@@ -231,11 +222,7 @@ function saveCookie(cook,svkey) {
     if (/Path|HttpOnly|Secure/.test(k)) continue;
     xdata[k] = ckData[k];
   }
-
   sv_ckData[path] = xdata;
   ckMap.set(svkey, sv_ckData);
-
 }
-
 process.on('SIGINT', parentPort.close);
-

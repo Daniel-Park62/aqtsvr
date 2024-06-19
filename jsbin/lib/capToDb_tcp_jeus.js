@@ -1,10 +1,8 @@
 "use strict";
-
 const MAX_RESP_LEN = 1024 * 1024 * 2;
 const SIZE_BLOB = 1024 * 1024 * 2; 
 const PGNM = '[capToDb_tcp_jeus]';
 let con ;
-
 // process.on('SIGTERM', endprog);
 process.on('warning', (warning) => {
     console.warn(warning.name);    // Print the warning name
@@ -12,21 +10,16 @@ process.on('warning', (warning) => {
     console.warn(warning.stack);   // Print the stack trace
 });
 let icnt = 0 ;
-
 module.exports = function (args) {  
-
     con = args.conn ;
     const patt1 = new RegExp(args.dstip) ;
     const patt2 = new RegExp(args.dstport.length > 0 ? args.dstport : '.');
-
     const myMap = new Map();
     const myMap_s = new Map();
     const { spawn } = require('child_process');
-
     const util = require('util');
     // const pcapp = require('./pcap-parser');
     const pcapp = require('./pcap-parser');
-
     const moment = require('moment');
     const decoders = require('./Decoders')
     const PROTOCOL = decoders.PROTOCOL;
@@ -42,7 +35,6 @@ module.exports = function (args) {
         dstobj = args.dstv;
     } catch (err) {
         // console.error(err);
-
         console.log(PGNM, "START tcpdump");
         const NETIP = (args.dstv ? ` && ( net ${args.dstv} ) ` : "");
         child = spawn('tcpdump -i2 -n -s0 -w - "', ["tcp && tcp[13]&16 != 0 ", NETIP,args.otherCond ,'"'], { shell: true });
@@ -55,14 +47,12 @@ module.exports = function (args) {
         ltype = gheader.linkLayerType ;
         console.log(gheader) ;
     });
-
     let endsw = 1;
     parser.on('packet', async function (packet) {
         if (args.maxcnt > 0 && args.maxcnt <= icnt) {
             if (endsw) { endsw = 0; process.nextTick( endprog);}
             return ;
         }
-
         let ret = decoders.Ethernet(packet.data);
         let ptime = moment.unix(packet.header.timestampSeconds).format('YYYY-MM-DD HH:mm:ss') + '.' + packet.header.timestampMicroseconds;
         let buffer = packet.data;
@@ -77,7 +67,6 @@ module.exports = function (args) {
 //            console.log(PGNM,packet.header, ret.info );
         if (1 || ret.info.type === PROTOCOL.ETHERNET.IPV4) {
             // console.log(PGNM,packet.data );
-
             ret = decoders.IPV4(buffer,  ret.offset);
               // console.log(PGNM,ret) ;
             if (ret.info.totallen <= 40) return;
@@ -87,9 +76,7 @@ module.exports = function (args) {
             const ip_totlen = ret.info.totallen ;
             if (ret.info.protocol === PROTOCOL.IP.TCP) {
                 let datalen = ret.info.totallen - ret.hdrlen;
-
                 // console.log(PGNM,'Decoding TCP ...');
-
                 ret = decoders.TCP(buffer, ret.offset);
                 let ky = util.format('%s:%d:%d', srcip, ret.info.srcport, ret.info.ackno);
                 // console.log(PGNM,' from port: ' + ret.info.srcport + ' to port: ' + ret.info.dstport);
@@ -99,7 +86,6 @@ module.exports = function (args) {
                 // console.log(PGNM,ret) ;
                 // console.log(PGNM,buffer.toString('binary', ret.offset, ret.offset + datalen));
                 // console.log(PGNM,buffer.slice(ret.offset, ret.offset + 200).toString());
-
                 if (patt1.test(dstip) && patt2.test(ret.info.dstport.toString() )) {
                     // let sdata = buffer.slice(ret.offset, ret.offset + datalen);
                     if (myMap_s.has(ky)  && myMap.has(myMap_s.get(ky) ) ) {
@@ -113,8 +99,7 @@ module.exports = function (args) {
                         return ;
                     } 
                     let sdata = buffer.slice(ret.offset);
-                    if ( ! /Content-Length/i.test(sdata))  return ;
-
+//                    if ( ! /Content-Length/i.test(sdata))  return ;
                     let datas = {
                         tcode: args.tcode,
                         method: 'POST',
@@ -139,11 +124,8 @@ module.exports = function (args) {
                     
                     myMap.set(ky, datas);
                     myMap_s.set(sky,ky);
-
                 } else if (myMap.has(ky)) {
-
                     let datas = myMap.get(ky);
-
                     if (ptime > datas.stime) datas.rtime = ptime;
                     if (datas.rdata.length > 0)
                         datas.rdata = Buffer.concat([datas.rdata, buffer.slice(ret.offset) ]);
@@ -162,29 +144,23 @@ module.exports = function (args) {
                     } else {
                         myMap.set(ky, datas);
                     }
-
                 }
-
             } else if (ret.info.protocol === PROTOCOL.IP.UDP) {
                 console.log(PGNM,'Decoding UDP ...');
-
                 ret = decoders.UDP(buffer, ret.offset);
                 console.log(PGNM,' from port: ' + ret.info.srcport + ' to port: ' + ret.info.dstport);
-
                 console.log(PGNM,buffer.toString('binary', ret.offset, ret.offset + ret.info.length));
             } else
                 ; //console.log(PGNM,'Unsupported IPv4 protocol: ' + PROTOCOL.IP[ret.info.protocol]);
         } else
             console.log(PGNM,'Unsupported Ethertype: ' + PROTOCOL.ETHERNET[ret.info.type], ret.info.type );
-
-
     });
-
     parser.on('end', ()=> { setTimeout( endprog, 1000) } ) ;
     
 	async function insert_data(datas ) {
             datas = await parser_http(datas) ;
-
+//		if (datas.hasOwnProperty('rhead' ) ) 
+		if (datas.uri.length > 0 ) 
 			return con.query("INSERT INTO TLOADDATA \
 			(TCODE, O_STIME,STIME,RTIME, SRCIP,SRCPORT,DSTIP,DSTPORT,PROTO, METHOD, URI,SEQNO,ACKNO,slen,rlen,SDATA,RDATA, rhead) \
 			values \
@@ -200,8 +176,9 @@ module.exports = function (args) {
 					console.error(" insert error size(%d)",datas.rdata.length + datas.sdata.length, err);
 					process.emit('SIGINT') ;
 			}) ;
+		else
+			return ;
 	}
-	
     async function endprog() {
 		console.log("end process start") ;
         // myMap.forEach(async (datas, ky) => {
@@ -214,58 +191,65 @@ module.exports = function (args) {
         };
         myMap.clear();
         console.log("%s *** Import completed (%d 건)***", PGNM, icnt);
-
         await con.end();
-
         process.exit();
-
     }
-
     async function parser_http(datas) {
+		const myHead = new Map();
         let bdata = datas.sdata.slice(96) ;
         let sdata = "";
         datas.uri = '';
         let hd1 = /000[34]M([A-Z]+)00/.exec(bdata) ;
-        if (hd1) sdata = hd1[1] + " "  ;
-        datas.method = hd1[1] ;
-        hd1 = /00[02]\dR(.+?)00\d\d[C-R]/.exec(bdata) ;
         if (hd1) {
+			sdata = hd1[1] + " "  ;
+        	datas.method = hd1[1] ;
+		}
+        hd1 = /00\d\dR(.+?)00\d\d[C-R]/.exec(bdata) ;
+        if (hd1) {
+            let pos = hd1[1].indexOf('?') ;
             sdata += hd1[1] + " "  ;
             try {
-                datas.uri = decodeURIComponent(hd1[1].replace(/(.+)\/?$/, '$1'));
+                if (pos > 0)
+                    datas.uri = decodeURIComponent(hd1[1].substring(0,pos)) ;
+                else
+                    datas.uri = decodeURIComponent(hd1[1]) ;
+//                datas.uri = decodeURIComponent(hd1[1].replace(/(.+)[?/]?$/, '$1'));
             } catch (error) {
                 console.error(hd1[1], error);
-                datas.uri = hd1[1].replace(/(.+)\/?$/, '$1');
+                if (pos > 0)
+                    datas.uri = hd1[1].substring(0,pos) ;
+                else
+                    datas.uri = hd1[1] ;
+//                datas.uri = hd1[1].replace(/(.+)[?/]?$/, '$1');
             }
-
 //            if (! datas.uri )  datas.uri = hd1[1] ;
         }
         hd1 =  /0008P(.+?)00\d\d[C-R]/.exec(bdata) ;
         if (hd1) sdata += hd1[1]   ;
         sdata += "\r\n"; 
-        [18,20,21,29,32,27,23,50,33,53].forEach( (x) => {
-            let re = new RegExp("00" + x + "H(.+?)(?=00\\d\\d[C-R]|0000)") ;
-            let hl = re.exec(bdata) ;
+        [17,18,19,20,21,23,29,31,32,27,23,50,33,53,55,127].forEach( (x) => {
+            let re = new RegExp("(?<=" + String(x).padStart(4,'0') + "H)(.+?)(?=0\\d{3}[C-R]|0000)",'g') ;
+            let hl = bdata.toString().match(re) ;
             if (hl) {
-                hd1 = hl[1].replace("\t",": ") ;
-                sdata += hd1 + "\r\n" ;
+				hl.forEach( hh => {
+					if (myHead.has(hh) ) return ;
+					hd1 = hh.replace("\t",": ") ;
+					sdata += hd1 + "\r\n" ;
+					myHead.set(hh,'') ;
+				});
             }
         });
         sdata += "\r\n" ;
         let p = bdata.indexOf("0000");
         if (p >= 0)  sdata += bdata.slice(p+4) ;
         datas.sdata = sdata ;
-
         let rdata = datas.rdata.slice(96).toString().replace(/\0.*$/sg,'') ;
-
+	    datas.rhead = '';
         p = rdata.indexOf("\r\n\r\n") ;
         if (p >= 0) {
             datas.rhead = Buffer.from(rdata.slice(0, p)) ;
             datas.rdata = Buffer.from(rdata.slice(p+4) ) ;
         }
-
         return datas ;
-
     }
-
 }

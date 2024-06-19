@@ -4,13 +4,15 @@
 //     console.error("정보파일이 필요합니다.") ;
 //     process.exit(1);
 // }
-const info_file = process.argv[4] ??  './cap_info';
+if (process.argv.length < 3 ) {
+    console.info(process.argv[1] , " 실행옵션정보파일이 필요합니다(cap_info.js 참조).");
+    process.exit(1);
+}
+
+const info_file = process.argv[2] ;
 const args = require(info_file) ;
-args.tcode = process.argv[2];
-args.dstv = process.argv[3] ;
-if (!args.dstv || !args.tcode ) {
-    console.info(process.argv[1] , " 3개의 인수가 필요합니다.");
-    console.info(process.argv[1] , " tcode  대상파일 정보파일");
+if ( !args.tcode) {
+    console.info(process.argv[1] , " 테스트코드를 지정하세요.");
     process.exit(1);
 }
 

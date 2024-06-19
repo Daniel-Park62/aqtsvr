@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-if [ $# -lt 2 ] ; then
+if [ $# -lt 1 ] ; then
   echo " aqtctl [start|stop] [HTTP|TMAX|TCP]"
   exit ;
 fi
@@ -70,10 +70,10 @@ function stop_f2 {
     echo "중지할 작업이 없습니다.";
   fi
 }
-export AQTTYPE=$2;
+export AQTTYPE=${2:-'HTTP'};
 case $1 in
   start|restart|reload)
-    echo "deamon start";
+    echo "deamon start ${AQTTYPE}";
     if [ "${AQTTYPE}" == 'TMAX' ];then
       start_f1 $1 ;
     else

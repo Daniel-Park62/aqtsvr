@@ -366,7 +366,7 @@ static int update_db(unsigned long pkey, char *rcvdata, long rlen, char *stime, 
   memset(cquery, 0, sizeof(cquery));
   memset(cbuf, 0, sizeof(cbuf));
 
-  if (rlen > 8)
+  if (rlen > 0)
   {
     ilen = (rlen > MAXLN2M ? MAXLN2M : rlen);
     mysql_real_escape_string(conn, cbuf, rcvdata, ilen);
