@@ -1,5 +1,18 @@
 "use strict";
-const args = require('./cap_info');
+const args = {
+  aqttype : '',
+  tcode:null,
+  dstip: '192.168.196.129',
+  dstport:'8888' ,
+  svcid:'',
+  ptype:'F',
+  dstv:null,
+  otherCond :'', 
+  norcv:null,  
+  conn:null,
+  maxcnt:0,
+  jobId:0
+} ;
 const PGNM = '[aqtExecJob]';
 const moment = require('moment');
 const con = require('./db/db_con'); 

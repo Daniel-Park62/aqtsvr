@@ -4,7 +4,7 @@ const MAX_RESP_LEN = 1024 * 1024 * 2;
 const SIZE_BLOB = 1024 * 1024 * 2;
 const PGNM = "capToDb_tmax";
 const { resolve } = require('path');
-let con;
+let con, child;
 
 process.on('warning', (warning) => {
     console.warn(warning.name);    // Print the warning name
@@ -36,15 +36,15 @@ module.exports = function (args) {
     icnt = 0;
     console.log("%s Start ", PGNM, args.tcode, args.dstv);
 
-    try {
+    if (args.ptype == 'F') {
         if (!fs.statSync(args.dstv).isFile()) throw 'is not File';
         dstobj = args.dstv;
-    } catch (err) {
-        // console.error(err);
+    } else {
 
         console.log(PGNM, "START tcpdump");
-        const NETIP = (args.dstv ? ` && ( net ${args.dstv} ) ` : "");
-        child = spawn('tcpdump -s0 -w - "tcp && tcp[13]&16 != 0 ', [ args.otherCond, '"'], { shell: true });
+        
+        child = spawn('tcpdump -s0 -w - "tcp && tcp[13]&16 != 0 && net ',
+             [ args.dstip, args.otherCond, '"', args.otherOpt ], { shell: true });
         dstobj = child.stdout;
         process.on('SIGINT', () => child.kill());
     }
