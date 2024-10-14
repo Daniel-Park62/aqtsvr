@@ -64,7 +64,7 @@ function sendData(row) {
       console.log(PGNM, "pid=>", process.pid);
       
       let param = {
-        tcode: row.tcode, cond: row.etc, conn: await con.getConnection(), tnum:row.tnum, aqttype:dat[0].pro
+        tcode: row.tcode, cond: row.etc, conn: await con.getConnection(), tnum:row.tnum, aqttype:dat[0].pro, exectype:row.exectype
         , limit: row.limits, interval: row.reqnum, loop: row.repnum , dbskip: row.dbskip == '1', jobId: row.pkey
       };
       new sendMain(param);

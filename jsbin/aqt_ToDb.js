@@ -11,8 +11,18 @@ if (process.argv.length < 3 ) {
 
 const info_file = process.argv[2] ;
 const args = require(info_file) ;
+
+if ( !args.dstv) {
+    if( !process.argv[3]) {
+        console.info(process.argv[1] , " 입력파일을 지정하세요.(dstv)");
+        process.exit(1);
+    } else {
+        argv.dstv = process.argv[3] ;
+    }
+}
+
 if ( !args.tcode) {
-    console.info(process.argv[1] , " 테스트코드를 지정하세요.");
+    console.info(process.argv[1] , " 테스트코드를 지정하세요.(tcode)");
     process.exit(1);
 }
 

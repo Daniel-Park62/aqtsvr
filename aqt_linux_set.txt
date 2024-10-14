@@ -33,9 +33,10 @@ GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY '';
 
 SELECT Host,User,plugin,authentication_string FROM mysql.user;
 
-CREATE USER 'aqtdb'@'%' IDENTIFIED BY 'Dawinit1!';
-GRANT SELECT, DELETE, INSERT, EVENT, UPDATE, TRIGGER  ON `aqtdb2`.* TO 'aqtdb'@'%';
-GRANT SELECT, DELETE, INSERT, EVENT, UPDATE, TRIGGER  ON `aqtdb2`.* TO 'aqtdb'@'localhost';
+CREATE USER 'aqtusr'@'%' IDENTIFIED BY 'Dawinit1!';
+CREATE USER 'aqtusr'@'localhost' IDENTIFIED BY 'Dawinit1!';
+GRANT SELECT, DELETE, INSERT, EVENT, UPDATE, TRIGGER  ON `aqtdb`.* TO 'aqtusr'@'%';
+GRANT SELECT, DELETE, INSERT, EVENT, UPDATE, TRIGGER  ON `aqtdb`.* TO 'aqtusr'@'localhost';
 
 /usr/local/mysql/support-files/mysql.server 수정후
 
@@ -122,6 +123,7 @@ sudo ln -s /usr/local/lib/nodejs/node-$VERSION-$DISTRO/bin/npx /usr/bin/npx
 
 ==========================================
 
+여기까지 만
 
 
 ==========================

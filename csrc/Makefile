@@ -20,13 +20,13 @@ ${BDIR}/aqt_sendM2: aqt_sendM2.c
 ${BDIR}/aqt_sendS: aqt_sendS.c
 	${CC} ${CFLAGS} -o $@ $? -L${MARIADB_HOME}/lib -lmariadb 
 
-${BDIR}/aqt_request: aqt_request.c
+${BDIR}/aqt_request: aqt_request.c 
 	${CC} ${CFLAGS} -o $@ $? -L${MARIADB_HOME}/lib -lmariadb 
 
 ${BDIR}/aqt_sendM: aqt_sendM.c
 	${CC} ${CFLAGS} -o $@ $? ${LDLIBS} 
 
-${BDIR}/aqt_reqsub: aqt_reqsub.c
+${BDIR}/aqt_reqsub: aqt_reqsub.c 
 	${CC} ${CFLAGS} -o $@ $? ${LDLIBS} 
 
 .c.o:

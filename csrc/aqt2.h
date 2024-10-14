@@ -19,7 +19,7 @@
 #define VNAME_SZ 128
 #define FNAME_SZ 256
 
-#define DBHOST NULL
+#define DBHOST "172.19.224.1"
 #define DBUSER "aqtdb"
 #define DBNAME "aqtdb2"
 #define DBPASS "Dawinit1!"

@@ -159,7 +159,8 @@ int connectDB()
     LOGERROR("mysql init error");
     return (-1);
   }
-
+  my_bool reconnect= 1; /* enable reconnect */
+  mysql_optionsv(conn, MYSQL_OPT_RECONNECT, (void *)&reconnect);
   if ((mysql_real_connect(conn, DBHOST, DBUSER, DBPASS, DBNAME, DBPORT, DBSOCKET, 0)) == NULL)
   {
     LOGERROR("DB connect error : %s", mysql_error(conn));
@@ -221,6 +222,11 @@ int main(int argc, char *argv[])
     {
       LOGINFO("msgrcv end (%d)", getpid());
       break;
+    }
+
+    if (mysql_ping(conn)) {
+      LOGINFO("DB connect check !! (%d)", getpid());
+      break ;
     }
     _iTotCnt++;
 

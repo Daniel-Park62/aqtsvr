@@ -1,7 +1,7 @@
 var net = require('net');
 const port = process.argv[2] ?? 10002;
 
-var socket = net.connect({port : port});
+var socket = net.createConnection({port : port, host:'8.8.8.8', localAddress:'10.0.22.132'});
 socket.on('connect', function(){
 	console.log('connected to server!');
 	

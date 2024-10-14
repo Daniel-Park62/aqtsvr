@@ -1,14 +1,17 @@
 
-CREATE DATABASE IF NOT EXISTS `aqtdb2` ;
-USE `aqtdb2`;
+CREATE DATABASE IF NOT EXISTS `aqtdb` ;
+USE `aqtdb`;
 
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'dawinit1';
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY 'dawinit1';
 
-CREATE OR REPLACE USER 'aqtdb'@'%' IDENTIFIED BY 'Dawinit1!';
-CREATE OR REPLACE USER 'aqtdb'@'localhost' IDENTIFIED BY 'Dawinit1!';
-GRANT EXECUTE,SELECT, DELETE, INSERT, CREATE VIEW, EVENT, UPDATE, TRIGGER  ON `aqtdb2`.* TO 'aqtdb'@'%';
-GRANT EXECUTE,SELECT, DELETE, INSERT, CREATE VIEW, EVENT, UPDATE, TRIGGER  ON `aqtdb2`.* TO 'aqtdb'@'localhost';
+CREATE OR REPLACE USER 'aqtusr'@'%' IDENTIFIED BY 'Dawinit1!';
+CREATE OR REPLACE USER 'aqtusr'@'localhost' IDENTIFIED BY 'Dawinit1!';
+GRANT EXECUTE,SELECT, DELETE, INSERT, CREATE VIEW, EVENT, UPDATE, TRIGGER ,alter ON `aqtdb`.* TO 'aqtusr'@'%';
+GRANT EXECUTE,SELECT, DELETE, INSERT, CREATE VIEW, EVENT, UPDATE, TRIGGER,alter  ON `aqtdb`.* TO 'aqtusr'@'localhost';
+grant file on *.* to 'aqtusr'@'localhost';
+grant file on *.* to 'aqtusr'@'%';
+
 flush PRIVILEGES ;
 
 CREATE TABLE IF NOT EXISTS `tconfig` (
@@ -16,7 +19,8 @@ CREATE TABLE IF NOT EXISTS `tconfig` (
   `pass1` varchar(50) DEFAULT NULL COMMENT '테스트admin passwd',
   `TCODE` varchar(20) DEFAULT NULL,
   `encval` varchar(20) DEFAULT NULL COMMENT 'default encoding',
-  `proto` char(1) DEFAULT '0',
+  `proto` char(1) DEFAULT '0' ,
+  `compr` char(1) DEFAULT '0' COMMENT '1.압축',
   `diffc` varchar(200) DEFAULT 'AND (a.rcode <> b.rcode or a.rcode > 399 or b.rcode > 399)',
   `pjtnm` VARCHAR(200) ,
   `COL1` VARCHAR(50) ,
@@ -168,22 +172,23 @@ DELIMITER //
 CREATE PROCEDURE `sp_loaddata`(
 	IN `p_src` VARCHAR(50),
 	IN `p_dst` VARCHAR(50),
-	IN `p_cond` CHAR(150)
+	IN `p_cond` VARCHAR(500)
 )
 COMMENT ''
 BEGIN
 
 DECLARE v_msg VARCHAR(100) ;
 
+SELECT appid INTO @vappid FROM tmaster WHERE CODE = p_dst ;
+
 SET @SQLT = CONCAT ( '
-							INSERT INTO ttcppacket ( tcode, cmpid, o_stime, stime, rtime, elapsed, srcip, srcport, dstip, dstport, proto, method, 
+							INSERT INTO ttcppacket ( tcode, cmpid,appid, o_stime, stime, rtime, elapsed, srcip, srcport, dstip, dstport, proto, method, 
 											 uri, seqno, ackno, slen, rlen, sdata, rdata, errinfo	,rhead	) 
-							SELECT \'', p_dst,'\', pkey , o_stime, stime, rtime, elapsed, srcip, srcport, dstip, dstport, proto, method, 
-											 uri, seqno, ackno, slen, rlen, sdata, rdata, errinfo	,rhead FROM TLOADDATA WHERE '
+							SELECT \'', p_dst,'\', t.pkey ,\'', @vappid, '\', o_stime, stime, rtime, elapsed, srcip, srcport, dstip, dstport, proto, method, 
+											 uri, seqno, ackno, slen, rlen, sdata, rdata, errinfo	,rhead FROM TLOADDATA t  WHERE '
 		, if (p_src = '%' ,'true', CONCAT('TCODE = \'',p_src,'\'') ) , p_cond );
 		
 
--- SELECT @SQLT ;
 EXECUTE IMMEDIATE @SQLT   ;
 
 SELECT CONCAT( format(ROW_COUNT(),0), ' 건 복제되었음:', p_dst ) INTO v_msg ;
@@ -200,7 +205,7 @@ DELIMITER //
 CREATE PROCEDURE `sp_loaddata2`(
 	IN `p_src` VARCHAR(50),
 	IN `p_dst` VARCHAR(50),
-	IN `p_cond` VARCHAR(150),
+	IN `p_cond` VARCHAR(500),
 	IN `p_ecnt` INT
 )
 BEGIN
@@ -229,8 +234,15 @@ DECLARE CONTINUE HANDLER FOR NOT FOUND SET done := TRUE ;
 
 SET @SQLT = CONCAT ( 
 	'create or REPLACE VIEW VTLOADDATA AS
-	  SELECT t.*,IFNULL(B.APPID,\'\') APPID FROM TLOADDATA t LEFT JOIN tapphosts B ON (T.DSTIP = B.THOST AND (T.DSTPORT = B.tport OR B.tport = 0)) WHERE ', if (p_src = '%' ,'true', CONCAT('TCODE = \'',p_src,'\'') ) , p_cond ) ; 
+	  SELECT t.*,B.APPID APPID FROM TLOADDATA t , tmaster B WHERE '
+	  , if (p_src = '%' ,'true', CONCAT('TCODE = \'',p_src,'\'') ) 
+	  , CONCAT('b.CODE = \'',p_dst,'\'')  
+	  , p_cond ) ; 
 
+/*
+	  SELECT t.*,IFNULL(B.APPID,\'\') APPID FROM TLOADDATA t LEFT JOIN tapphosts B ON (T.DSTIP = B.THOST AND (T.DSTPORT = B.tport OR B.tport = 0)) WHERE ',
+	   if (p_src = '%' ,'true', CONCAT('TCODE = \'',p_src,'\'') ) , p_cond ) ; 
+*/
 -- SELECT @SQLT ;
 EXECUTE IMMEDIATE @SQLT   ;
 
@@ -313,13 +325,14 @@ BEGIN
 	CALL sp_insService(in_tcode) ;
  
 	UPDATE tservice l, ( 
-		SELECT uri, appid, COUNT(1 ) cnt
-		 from  ttcppacket , tmaster 
+		SELECT uri, t.appid, COUNT(1 ) cnt
+		 from  ttcppacket t , tmaster m
 		 WHERE TCODE =  CODE AND LVL > '0'
-		 GROUP BY uri, appid 
+		 GROUP BY uri, t.appid 
 	) s
 	SET l.cumcnt  = s.cnt
 	WHERE l.svcid = s.uri AND l.appid = s.appid ;
+   
    
    COMMIT;
 	
@@ -327,7 +340,7 @@ END//
 DELIMITER ;
 
 DELIMITER //
-CREATE PROCEDURE `sp_summtask`(
+CREATE OR REPLACE PROCEDURE `sp_summtask`(
 	IN `in_task` VARCHAR(50)
 )
 BEGIN
@@ -337,15 +350,15 @@ BEGIN
 	   WHERE ttasksum.task = b.task AND ttasksum.lvl = a.lvl) ;
 	
 	INSERT INTO ttasksum ( task, lvl, svc_cnt, fsvc_cnt, data_cnt, scnt, fcnt, udate )
-	 SELECT task, lvl, svc_cnt, fsvc_cnt, data_cnt, scnt, fcnt , NOW() FROM 
-	 ( 		SELECT      task, lvl, count(distinct URI ) svc_cnt
+	 SELECT APPID, lvl, svc_cnt, fsvc_cnt, data_cnt, scnt, fcnt , NOW() FROM 
+	 ( 		SELECT      APPID, lvl, count(distinct URI ) svc_cnt
 		, count(distinct case when sflag = '2' then URI end ) fsvc_cnt
 		, count(1) data_cnt
 		, sum(case when sflag = '1' then 1 else 0 end) scnt
 		, sum(case when sflag = '2' then 1 else 0 end) fcnt
-		 from  vtcppacket a JOIN tservice b ON (a.uri = b.svcid AND b.appid = a.appid ) 
-		 WHERE b.task like in_task
-		 GROUP BY b.task, lvl
+		 from  vtcppacket  
+		 WHERE APPID like in_task
+		 GROUP BY APPID, lvl
 	 ) summ
 	 ON DUPLICATE KEY 
 	UPDATE svc_cnt = summ.svc_cnt,
@@ -369,12 +382,18 @@ CREATE TABLE `taqtuser` (
 	`pass1` VARCHAR(50) NOT NULL DEFAULT password('aqtuser') ,
 	`admin` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '테스트관리자 1',
 	`apps` VARCHAR(100) NOT NULL DEFAULT '' ,
+	`lastin` DATETIME NOT NULL DEFAULT current_timestamp(),
+	`lcnt` INT(11) NOT NULL DEFAULT '0',
 	`regdt` DATETIME NOT NULL DEFAULT current_timestamp(),
 	PRIMARY KEY (`pkey`) USING BTREE
 )
 COLLATE='utf8_general_ci'
 ENGINE=InnoDB;
 
+INSERT INTO taqtuser
+	(Host, usrid, usrdesc, pass1, admin, apps)
+	VALUES ('%', 'testadmin', 'AQT admin', password('aqtadmin'), 1, '.*') ;
+	
 CREATE TABLE IF NOT EXISTS `tapphosts` (
   `pkey` int(11) NOT NULL AUTO_INCREMENT,
   `appid` varchar(50) NOT NULL,
@@ -388,6 +407,7 @@ CREATE TABLE IF NOT EXISTS `tapplication` (
   `appnm` varchar(60) DEFAULT NULL,
   `manager` varchar(50) DEFAULT NULL COMMENT '담당자',
   `gubun` TINYINT(4) NULL DEFAULT 0,
+  `scnt` INT(10) UNSIGNED NULL DEFAULT '0' COMMENT '대상서비스수',
   PRIMARY KEY (`appid`)
 ) ENGINE=InnoDB  COMMENT='테스트대상 application';
 
@@ -481,6 +501,7 @@ CREATE TABLE IF NOT EXISTS `tmaster` (
   `endDate` date DEFAULT NULL COMMENT '테스트종료일',
   `tdir` varchar(80) DEFAULT NULL,
   `tuser` varchar(20) DEFAULT NULL,
+  `appid` VARCHAR(50) NULL DEFAULT '',
   `thost` varchar(50) DEFAULT NULL,
   `tport` int(10) unsigned NOT NULL DEFAULT 0,
   `tenv` varchar(100) DEFAULT NULL COMMENT '별도환경파일위치',
@@ -582,12 +603,14 @@ BEGIN
 END//
 DELIMITER ;
 
-CREATE  VIEW `vtcppacket` AS SELECT t.*, m.*  FROM ttcppacket t JOIN tmaster m ON (t.tcode = m.code )  ;
+CREATE or replace  VIEW `vtcppacket` AS SELECT t.*, 
+   m.type, lvl, desc1, cmpCode, tdate, endDate, tdir, tuser, thost, tport, tenv, pro, svc_cnt, fsvc_cnt, data_cnt, scnt, fcnt
+FROM ttcppacket t JOIN tmaster m ON (t.tcode = m.code )  ;
 
 CREATE  VIEW `vtrxdetail` AS SELECT 1 pkey, CAST('' as VARCHAR(20)) tcode,  CAST('' as VARCHAR(60)) svcid,  CAST('' as VARCHAR(60)) scrno,   
 							CAST('' as VARCHAR(60)) svckor , 1 tcnt, 99.99 avgt , 1 scnt , 1 fcnt, 1 cumcnt ;
 
-CREATE  VIEW `vtrxlist` AS SELECT      t.code, `type`, t.lvl, desc1, cmpCode, tdate, endDate, tdir, tuser, thost, tport, tenv,
+CREATE or replace VIEW `vtrxlist` AS SELECT      t.code, `type`, t.lvl, desc1, cmpCode, tdate, endDate, tdir, tuser, thost, tport, tenv, appid,
 				ifnull(t.svc_cnt, 0) svc_cnt,
 				ifnull(t.fsvc_cnt, 0) fsvc_cnt,
             ifnull(t.data_cnt, 0) data_cnt,
