@@ -1,5 +1,5 @@
 
-FL=`ls -rt ${AQTLOG}/*[rms]log 2>/dev/null | tail -1`
+FL=`ls -t ${AQTLOG}/*[rms]log 2>/dev/null | head -1`
 
 if [ -n $FL ]; then 
   cat $FL ; echo $FL ; 

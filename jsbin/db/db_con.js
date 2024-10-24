@@ -8,10 +8,14 @@ const connection = {
   database: config.database,
   idleTimeout : 60,
   acquireTimeout : 180000,
-  connectionLimit: 10,
+  connectionLimit: 5,
   bigIntAsNumber: true,
   insertIdAsNumber : true,
-  decimalAsNumber : true
+  decimalAsNumber : true,
+  dateStrings : true ,
+  validationQuery : 'select 1',
+  testWhileIdle : true,
+  timeBetweenEvictionRunsMillis: 1800000
 
 } ;
 

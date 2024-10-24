@@ -6,7 +6,8 @@ const connection = {
   port: config.port,
   user: config.user,
   password: config.password,
-  database: config.database
+  database: config.database,
+  dateStrings : true 
 } ;
 
 module.exports =  mariadb.createConnection(connection) ;

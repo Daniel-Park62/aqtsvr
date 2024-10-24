@@ -54,11 +54,11 @@ function start_f2 {
       kill ${JOBS} 2>/dev/null ;
     fi
   fi
-  LOGF1="${AQTLOG}/"`date +%Y%m%d`"_$$.jslog"
-  LOGF2="${AQTLOG}/"`date +%Y%m%d`rs"_$$.jslog"
+  # LOGF1="${AQTLOG}/"`date +%Y%m%d`"_$$.jslog"
+  # LOGF2="${AQTLOG}/"`date +%Y%m%d`rs"_$$.jslog"
 
-  node aqt_execJob >$LOGF1 2>&1 &
-  node aqt_resend >$LOGF2 2>&1 &
+  node aqt_execJob & # >$LOGF1 2>&1 &
+  node aqt_resend & # >$LOGF2 2>&1 &
 
 }
 function stop_f2 {

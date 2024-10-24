@@ -3,9 +3,10 @@
 */
 
 "use strict";
+const moment = require('moment');
+const cdate = () => "[sendMain] " + moment().format("MM/DD HH:mm:ss.SSS :");
 
 const MAX_RESP_LEN = 1024 * 32;
-const PGNM = '[sendMain]';
 
 const { Worker, workerData } = require('worker_threads');
 
@@ -15,7 +16,7 @@ console.log("AqtTimeOut:", aqttimeout, " (set AqtTimeOut=ms)");
 let con = null;
 let dbskip = false;
 
-module.exports = function (param) {
+module.exports = async function (param) {
   con = param.conn;
   if (!param.loop) param.loop = 1;
   param.loop--;
@@ -25,9 +26,9 @@ module.exports = function (param) {
   let ecnt = 0;
   let condi = param.cond > ' ' ? "and (" + param.cond + ")" : "";
   let vlimit = param.limit > ' ' ? ' LIMIT ' + param.limit : "";
-  let orderby = param.tcode.substr(0,1) === 'Z' ? ' order by rand() ' : ' order by o_stime ' ;
+  let orderby = param.tcode.substr(0, 1) === 'Z' ? ' order by rand() ' : ' order by o_stime ';
   const threads = new Array();
-  
+
   dbskip = param.dbskip;
   thread_start(param);
   const qstr = "SELECT COUNT(*) cnt FROM ( select 1 from ttcppacket t where tcode = ? " + condi + vlimit + ") x";
@@ -36,75 +37,74 @@ module.exports = function (param) {
     .then(row => {
       tcnt = Number(row[0].cnt);
       console.log("%s Start 테스트id(%s) 작업수(%d) cond(%s) limit(%s) data건수(%d) pid(%d)"
-        , PGNM, param.tcode, param.tnum, condi, vlimit, tcnt, process.pid);
+        , cdate(), param.tcode, param.tnum, condi, vlimit, tcnt, process.pid);
     })
-    .catch(err => console.log(PGNM, qstr, err));
+    .catch(err => console.log(cdate(), qstr, err));
 
-  const qstream = con.queryStream("SELECT t.pkey,o_stime " +
+  let sv_time;
+  let delay = 0;
+
+  for await (const row of con.queryStream("SELECT t.pkey,o_stime " +
     "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
-    "where t.tcode = ? " + condi + orderby + vlimit, [param.tcode]);
-
-  qstream.on("error", err => {
-    console.log(PGNM, err); //if error
-  });
-  qstream.on("fields", meta => {
-    // console.log(PGNM,meta); // [ ...]
-  });
-  qstream.on("data", row => {
+    "where t.tcode = ? " + condi + orderby + vlimit, [param.tcode])) {
     cnt++;
-    qstream.pause();
-    // (cnt+1) % 100 == 0 && console.log(PGNM, row.tcode, cnt, row.uri);
-    let ichk = setInterval(() => {
+    delay = param.interval;
+    if (param.exectype == '1') {
+      if (sv_time) delay = (new Date(row.o_stime)) - (new Date(sv_time));
+      else delay = 50;
+      sv_time = row.o_stime;
+      if (delay < 10) delay = 50;
+    }
+
+    while(threads.length > 0) {
       const th = threads.find(t => t.busy == 0);
+      // console.log(cdate(),'loop',th, cnt) ;
       if (th) {
-        clearInterval(ichk);
         th.busy = 1;
-        if (param.interval > 0) {
-          setTimeout(() => {
-            th.wkthread.postMessage(row.pkey);
-          }, param.interval);
-        } else {
-          th.wkthread.postMessage(row.pkey);
-        }
-        qstream.resume();
+        if (delay > 0)  await sleep(delay);
+        th.wkthread.postMessage(row.pkey);
+        break ;
       }
-    }, 50);
+      await sleep(50);
+      if (delay > 50)  delay -= 50 ; else delay = 0;
+    };
 
-  });
+    if (threads.length == 0) break ;
 
-  qstream.on("end", () => {
-    console.log(PGNM, param.tcode,"*Jobid:" + param?.jobId, "*** read ended ***");
+  };
+  console.log(cdate(), param.tcode, "Count:", cnt, "*Jobid:" + param?.jobId, "*** read ended ***");
 
-    let ival = setInterval(async () => {
-      for (const v of threads) { if (!v.busy) await v.wkthread.terminate() }
-      // console.log(PGNM, "threads :", threads.length);
-      if (threads.length == 0) {
-        clearInterval(ival);
-        if (param.loop > 0) {
-          console.log(PGNM, "loop");
-          new module.exports(param);
-        } else {
-          if (!dbskip)
-            await con.query('call sp_summary(?)', [param.tcode]);
+  let ival = setInterval(async () => {
+    for (const v of threads) { if (!v.busy) await v.wkthread.terminate() }
+    // console.log(PGNM, "threads :", threads.length);
+    if (threads.length == 0) {
+      clearInterval(ival);
+      if (param.loop > 0) {
+        console.log(cdate(), "# Number of iterations remaining :",param.loop );
+        module.exports(param);
+      } else {
+        if (!dbskip)
+          await con.query('call sp_summary(?)', [param.tcode]);
 
-          if (param.hasOwnProperty('jobId'))
-            await con.query("UPDATE texecjob set resultstat = 2, msg = concat(ifnull(msg,''),now(),': ',?,'\r\n' ), endDt = now() where pkey = ? ",
-              [cnt + " 건 수행", param.jobId]);
-          console.log(`${cnt} read, ${ucnt} update, ${ecnt} error`) ;
-          param.exit && process.exit(0);
-        }
+        if (param.hasOwnProperty('jobId'))
+          await con.query("UPDATE texecjob set resultstat = 2, msg = concat(ifnull(msg,''),now(),': ',?,'\r\n' ), endDt = now() where pkey = ? ",
+            [cnt + " 건 수행", param.jobId]);
+        console.log(cdate(),`${cnt} read, ${ucnt} update, ${ecnt} error`);
+        param.exit && process.exit(0);
       }
-    }, 500);
+    }
+  }, 500);
 
-  });
-
-
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  
   function thread_start(param) {
-    let TYPEF ;
+    let TYPEF;
     // if (process.env.AQTTYPE === 'TCP')
     if (param.aqttype === 'TCP')
       TYPEF = '/tcpRequest.js';
-    else  if (param.aqttype === 'UDP')
+    else if (param.aqttype === 'UDP')
       TYPEF = '/udpRequest.js';
     else
       TYPEF = '/httpRequest.js';
@@ -124,13 +124,13 @@ module.exports = function (param) {
 
           // console.log(PGNM, i, `Thread exiting, ${threads.length} running...`);
           if (threads.length == 0) {
-            console.log(PGNM,(new Date()).toLocaleString(), 'thread all ended !!')
+            console.log(cdate(), 'thread all ended !!')
           }
         });
       wkthread.on('error', (err) => {
-        console.log(PGNM, "Thread error ", err);
+        console.log(cdate(), "Thread error ", err);
         if (param.hasOwnProperty('jobId'))
-          con.query("UPDATE texecjob set resultstat = 3, msg = concat(msg, ?, now(),':', ?,'\r\n'), endDt = now() where pkey = ?", [msgs, err, param.jobId]);
+          con.query("UPDATE texecjob set resultstat = 3, msg = concat(msg, ?, now(),':', ?,?,'\r\n'), endDt = now() where pkey = ?", [msgs, err,cnt, param.jobId]);
       });
       wkthread.on('message', (dat) => {
         // console.log(PGNM, "Thread data ", dat);
@@ -140,8 +140,8 @@ module.exports = function (param) {
         }
         dat?.ok && ucnt++;
         dat?.err && ecnt++;
-        for (const w of threads) { if (w.wkthread == wkthread) {w.busy = 0; break;} }
-        
+        for (const w of threads) { if (w.wkthread == wkthread) { w.busy = 0; break; } }
+
       });
 
       threads.push({ id: wkthread.threadId, wkthread });
@@ -149,10 +149,10 @@ module.exports = function (param) {
       // wkthread.postMessage(wdata) ;
 
     }
-    console.log((new Date()).toLocaleString(), "threads:", threads.length, wdata.workerData);
+    console.log(cdate(), "threads:", threads.length, wdata.workerData);
 
   }
 
 }
 
-process.on('uncaughtException', (err) => { console.error(PGNM, err); process.exit(1) });
+process.on('uncaughtException', (err) => { console.error(cdate(), err) });

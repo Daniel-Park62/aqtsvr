@@ -15,7 +15,7 @@ let con;
   process.on('SIGTERM', con.end);
   parentPort.postMessage({ ready: 1 });
 })();
-let param = workerData;
+const param = workerData;
 let mybns = checkCon(0) ;
 let ckexists = 0;
 // console.log("thread id:",threadId, param);
@@ -46,9 +46,13 @@ function dataHandle(rdata) {
   let stime = moment();
   let stimem = Math.floor(process.hrtime()[1] / 1000);
   // Create a new TCP client.
+
   const client = new Net.Socket();
   // Send a connection request to the server.
-  client.connect({ port: rdata.dstport, host: rdata.dstip });
+  if ( param.saup !== undefined && param.saup.localip ) 
+   client.connect({ port: param.saup.port, host: param.saup.hostip, localAddress: param.saup.localip });
+  else
+	client.connect({ port: rdata.dstport, host: rdata.dstip });
   client.setTimeout(param.aqttimeout);
   client.on('timeout', () => {
     // console.log(PGNM,'socket timeout');

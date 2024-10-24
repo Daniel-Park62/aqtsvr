@@ -5,14 +5,15 @@ const port = process.argv[2] ?? 11108;
 
 const server = new Net.Server();
 const cdate =  () => moment().format("MM/DD HH:mm:ss.SSS]");
-server.listen(port, function () {
-    console.log(cdate(),`BC listening for connection requests on socket  port: ${port}`);
+const mylog = console.log ;
+server.listen(port, "0.0.0.0",function () {
+    mylog(cdate(),`BC listening for connection requests on socket  port: ${port}`);
 });
 
 // When a client requests a connection with the server, the server creates a new
 // socket dedicated to that client.
 server.on('connection', function (socket) {
-    console.log(cdate(),'A new connection has been established.');
+    nylog(cdate(),'A new connection has been established.');
     const rval = Buffer.concat([Buffer.from(' '.repeat(6)), Buffer.from('FFFB19FFFD19', 'hex')]);
     let cok = 0;
     if (port == '11108' ) {
@@ -24,6 +25,9 @@ server.on('connection', function (socket) {
     let sv_chunk = Buffer.from('') ;
     socket.on('data', function (chunk) {
         // console.log(cdate(),chunk.toString('hex')) ;
+        if (chunk.length <= 0 ) {
+            console.log(cdate(), "Date 0 byte Error") ;
+        } 
         if (port == '11108' ) {
             sv_chunk = Buffer.concat([sv_chunk, chunk]) ;
             let lpos = sv_chunk.indexOf('FFEF','hex');
@@ -92,9 +96,11 @@ server.on('connection', function (socket) {
         } else if (chunk.slice(12, 16).toString() == '6770') {
              new dataProc6770(socket, chunk);
     
-        } else if ( chunk.length > 50)
+        } else if ( chunk.length > 50) {
+            console.time('checktime') ;
              new dataProcBC(socket, chunk);
-
+             console.timeEnd('checktime') ;
+        }
         if (cok != 1) {
             const sval = chunk.slice(0, 3).toString('hex').toLocaleUpperCase();
             if (sval == 'FFFD19') {
@@ -106,12 +112,12 @@ server.on('connection', function (socket) {
     // When the client requests to end the TCP connection with the server, the server
     // ends the connection.
     socket.on('end', function () {
-        console.log(cdate(),'Closing connection with the client');
+        mylog(cdate(),'Closing connection with the client');
     });
 
     // Don't forget to catch error, for your own sake.
     socket.on('error', function (err) {
-        console.log(cdate(),`Error: ${err}`);
+        mylog(cdate(),`Error: ${err}`);
     });
 
 
@@ -129,7 +135,7 @@ function dataProcBC(sock, chunk) {
         }
     }
     let trgb = dat.slice(12, 14).toString('hex');
-    console.log("trgb",trgb) ;
+    mylog(cdate(), port, 'recv',chunk.length, trgb) ;
     if (trgb == '0300') {
         trgb = '0310';
     } else if (trgb == '0400') {
@@ -172,14 +178,14 @@ function dataProcBC(sock, chunk) {
         if (i == 65) continue ;
         if (bitmap[i] == 48 ) {
             if ( i == 39 ){
-                rdat = Buffer.concat([rdat, Buffer.from(trgb == '0410' ? '02' : '01')]);
+                rdat = Buffer.concat([rdat,  Buffer.from(trgb == '0410' ? '02' : '01')]);
                 bitmap.write('1',i) ;
             }
             continue;
         }
         
         if (bclay[i] == undefined) {
-            console.error(cdate(),"undefined:", i, );
+            mylog(cdate(),"undefined:", i, );
             continue;
         }
         let len = 0;
@@ -194,13 +200,13 @@ function dataProcBC(sock, chunk) {
                 
             }
             if (len == 0)  {
-                console.error(cdate(),"length error:",i, bclay[i]);
+                mylog(cdate(),"length error:",i, bclay[i]);
                 continue ;
             }
         } else if (bclay[i].fv === 'f') {
             len = bclay[i].l;
         } else {
-            console.error(cdate(),"FV UNDEFINE", i);
+            mylog(cdate(),"FV UNDEFINE", i);
             break;
         }
             //    if (i == 118) {
@@ -215,9 +221,9 @@ function dataProcBC(sock, chunk) {
         //        len =  256 ;
         //    } else {
 
-        if (len <= 1) {
-            console.error(cdate(),"pos:",pos,i, bclay[i], dat.slice(pos,pos+10).toString('hex') );
-        }
+        // if (len <= 1) {
+        //  console.error(cdate(),"pos:",pos,i, bclay[i], dat.slice(pos,pos+10).toString('hex') );
+        // }
         let imdt = Buffer.from(dat.slice(pos, pos + len));
 
         if (i == 39) {
@@ -238,11 +244,15 @@ function dataProcBC(sock, chunk) {
             continue;
         }
         if (i == 3 && imdt.toString('hex') == '010000')  ssw = 1;
-        if (port == '21416' || port == '21417') {
+        if (port == '21416' || port == '21417')  {
             if (ssw == 1 && (i == 118 || i == 55) ) {
                 bitmap.write('0', i);
                 continue;
             }
+        }
+        if (trgb == '0410' && i == 55) {
+            bitmap.write('0', i);
+            continue;
         }
         // if (i == 55) {
         //  imdt = Buffer.from("06910800000012",'hex') ;
@@ -277,11 +287,11 @@ function dataProcBC(sock, chunk) {
         rdat = Buffer.concat([  Buffer.from(rdat.length.toString().padStart(4,'0')), rdat ]);
     }
     this.socket.write(rdat);
-    console.log('1234567890'.repeat(13));
-    console.log(bitmap.slice(1).toString());
+    // console.log('1234567890'.repeat(13));
+    // console.log(bitmap.slice(1).toString());
     console.log(cdate(), "return bitmap:", bitmapN.length , bitmapN );
     // print_bitmap(bitmap.slice(1).toString()) ;
-    console.log(cdate(),"last len:", rdat.length) ; //, rdat.toString('hex'));
+    mylog(cdate(),"last len:", rdat.length) ; //, rdat.toString('hex'));
     return '';
 }
 
@@ -295,7 +305,7 @@ function dataProc6770(sock, chunk) {
             pff = dat.indexOf(Buffer.from('ffff','hex')) ;
         }
     }
-    console.log("** 6770") ;
+    mylog(cdate(), port, "** 6770") ;
     dat.write('6771',12);
     dat.write('00',169) ;
     dat = Buffer.concat([  Buffer.from(dat.length.toString().padStart(4,'0')), dat ]);
@@ -328,29 +338,6 @@ function solution(num) {
     return ('0'.repeat(32) + answer).slice(-32);
 }
 
-const lay55 = [
-    [2,11],
-    [2,4],
-    [2,21],
-    [3,7],
-    [2,5],
-    [1,7],
-    [1,5],
-    [1,3],
-    [2,9],
-    [2,5],
-    [1,4],
-    [2,5],
-    [2,9],
-    [2,6],
-    [2,6],
-    [2,4],
-    [2,11],
-    [2,4],
-    [1,9],
-    [2,5],
-    [2,7]
-] ;
 const bclay = {
     2: { "l": 11, "t": "b", "fv": "v" },
     3: { "l": 3, "t": "b", "fv": "f" },
@@ -397,4 +384,3 @@ const bclay = {
     149: { "l": 6, "t": "b", "fv": "f" }
 }
     ;
-

@@ -17,7 +17,7 @@ if ( !args.dstv) {
         console.info(process.argv[1] , " 입력파일을 지정하세요.(dstv)");
         process.exit(1);
     } else {
-        argv.dstv = process.argv[3] ;
+        args.dstv = process.argv[3] ;
     }
 }
 

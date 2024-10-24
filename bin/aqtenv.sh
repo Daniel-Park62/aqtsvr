@@ -1,4 +1,4 @@
-AQTHOME=/mnt/d/PROJ/aqt/HANA
+AQTHOME=/f/AQTAPP/aqtsvr
 AQTLOG=$AQTHOME/logs
 # AQTDBIP=localhost
 # AQTDBPORT=3306

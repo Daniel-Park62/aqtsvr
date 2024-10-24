@@ -1,12 +1,13 @@
+//신한가상키
 const Net = require('net');
 const moment = require('moment');
 
-const port = process.argv[2] ?? 11108;
+const port = process.argv[2] ?? 12626;
 
 const server = new Net.Server();
 const cdate = () => moment().format("MM/DD HH:mm:ss.SSS]");
 const mylog = console.log ;
-server.listen(port,"0.0.0.0" ,function () {
+server.listen(port,"0.0.0.0" , function () {
     mylog(cdate(), `shinhan listening for connection requests on socket  port: ${port}`);
 });
 
@@ -20,7 +21,7 @@ server.on('connection', function (socket) {
     console.log(cdate(), rval.toString('hex'));
     let sv_chunk = Buffer.from('');
     socket.on('data', function (chunk) {
-        //      console.log(cdate(),chunk.toString()) ;
+        // console.log(cdate(), chunk.toString('hex'));
         sv_chunk = Buffer.concat([sv_chunk, chunk]);
         let lpos = sv_chunk.indexOf('FFEF', 'hex');
         while (lpos > 0) {
@@ -48,14 +49,17 @@ server.on('connection', function (socket) {
     });
 
     function datacheck(chunk) {
-        if (chunk.slice(0, 11).toString() == 'ISO02340005') {
-            let pff = chunk.indexOf(Buffer.from('ffff', 'hex'));
-            while (pff > 0) {
-                chunk = Buffer.concat([chunk.slice(0, pff), chunk.slice(pff + 1)]);
-                pff = chunk.indexOf(Buffer.from('ffff', 'hex'));
+        if (cok == 1 && chunk.slice(0, 11).toString() == 'ISO02340005') {
+            if (chunk.slice(12, 16).toString() == '0800') {
+                chunk.write('0810', 12, 4);
+                socket.write(chunk);
+            } else {
+                let pff = chunk.indexOf(Buffer.from('ffff','hex')) ;
+                while (pff > 0 ) {
+                    chunk = Buffer.concat([chunk.slice(0,pff), chunk.slice(pff+1)]) ;
+                }
+                new dataProc(socket, chunk);
             }
-
-            new dataProc(socket, chunk);
         } else if (cok == 1 && chunk.slice(0, 4).toString() == '0800') {
             chunk.write('0810', 0, 4);
             chunk.write('00', 52, 2);
@@ -67,28 +71,21 @@ server.on('connection', function (socket) {
                 cok = 1;
             }
         }
-
     }
 
     // The server can also receive data from the client by reading from its socket.
 });
 
-function dataProc(sock, dat) {
+function dataProc(sock, chunk) {
     this.socket = sock;
-
+    let dat = Buffer.from(chunk) ;
     let trgb = dat.slice(12, 16).toString();
-    mylog(cdate(),port, dat.length, trgb);
-    if (trgb == '0800') {
-        trgb = '0810';
-        dat.write('0810', 12, 4);
-        this.socket.write(dat);
-        return;
-    }
-    else if (trgb == '0200') trgb = '0210';
-    else if (trgb == '0420') trgb = '0430';
-    else if (trgb == '0220') trgb = '0230';
+    mylog(cdate(),port, chunk.length, trgb);
+    if (trgb == '0200') trgb = '0210';
+    else if (trgb == '0800') trgb = '0810';
     else {
-        console.error("Message Type error:", trgb)
+        console.error("Message Type error:", trgb);
+        this.socket.write(dat);
         return;
     }
 
@@ -96,43 +93,31 @@ function dataProc(sock, dat) {
         + ('0'.repeat(32) + parseInt(dat.slice(24, 32), 16).toString(2)).slice(-32);
 
     let pos = 32;
-    if (bitmap[1] == '1') {
-        bitmap += ('0'.repeat(32) + parseInt(dat.slice(32, 40), 16).toString(2)).slice(-32)
-            + ('0'.repeat(32) + parseInt(dat.slice(40, 48), 16).toString(2)).slice(-32);
-        pos = 48;
-    }
 
     //console.log(cdate(),new Date(), 'shinhan bitmap:',  bitmap.length - 1, bitmap.slice(1) );
+    
+//  print_bitmap(bitmap.slice(1));
     bitmap = Buffer.from(bitmap);
 
     let rdat = Buffer.from('');
-    let trgbcd = '000000';
     for (let i = 2; i < bitmap.length; i++) {
         if (bitmap[i] == 48) {   // '0' check
             if (trgb !== '0810') {
                 if (i == 39) {
                     rdat = Buffer.concat([rdat, Buffer.from('00')]);
-                    bitmap.write('1', 39);
-                }
-                if (i == 44) {
-                    rdat = Buffer.concat([rdat, Buffer.from('000000')]);
+                    bitmap.write('1', i);
+                } else if (i == 44) {
+                    rdat = Buffer.concat([rdat, Buffer.from('04    ')]);
                     bitmap.write('1', 44);
-                }
-                if (i == 56) {
-                    if (trgbcd !== '750031') {
-                        const sno = Date.now().toString().slice(-8);
-                        rdat = Buffer.concat([rdat, Buffer.from('008' + sno)]);
-                        bitmap.write('1', 56);
-                    }
+                } else if (i == 47) {
+                    rdat = Buffer.concat([rdat, Buffer.from('00601    ')]);
+                    bitmap.write('1', 47);
+                } else if (i == 56) {
+                    const sno = Date.now().toString().slice(-8);
+                    rdat = Buffer.concat([rdat, Buffer.from('008' + sno)]);
+                    bitmap.write('1', 56);
                 }
             }
-
-            // if (trgb === '0210') {
-            //  if ( i == 47) {
-            //      rdat = Buffer.concat([rdat, Buffer.from('006090000')]);
-            //      bitmap.write('1', 47);
-            //  }
-            // }
             continue;
         }
 
@@ -143,14 +128,11 @@ function dataProc(sock, dat) {
         }
         let len = 0;
         if (trlayout[i].fv === 'v') {
-
-            if (trlayout[i].vl > 1) {
+            if (trlayout[i].vl > 0) {
                 len = parseInt(dat.slice(pos, pos + trlayout[i].vl).toString());
-                if (!trlayout[i].incl) len += trlayout[i].vl;
+                len += trlayout[i].vl;
             } else {
-                len = dat.readUInt8(pos);
-                if (trlayout[i].t == 'b') len = Math.ceil(len / 2);
-                if (!trlayout[i].incl) len++;
+                len = trlayout[i].l;
             }
         } else if (trlayout[i].fv === 'f') {
             len = trlayout[i].l;
@@ -158,59 +140,32 @@ function dataProc(sock, dat) {
             console.error(cdate(), "FV UNDEFINE", i);
             break;
         }
-
+        // console.log(cdate(),i,"pos:",pos, "len:", len, dat.slice(pos,pos+20).toString('hex'));
         let imdt = dat.slice(pos, pos + len);
-
-        //      console.log(cdate(),i,"pos:",pos, "len:", len, imdt.toString());
         pos += len;
-        if (i == 48 || i == 60 || i == 22) {  // 22 번 m인데 제외해봄 
+        if (i == 22 || i == 48 || i == 52 || i == 60) {
             bitmap.write('0', i);
             continue;
         }
-        if (i == 3) trgbcd = imdt;
-
-        if (trgb == '0430') {
-            if (i == 12 || i == 13 || i == 32 || i == 56) {
-                bitmap.write('0', i);
-                continue;
-            }
+        if (i == 56) {
+            const sno = Date.now().toString().slice(-8);
+            imdt.write(sno, 3);
         }
-        if (trgb == '0230') {
-            if (i == 12 || i == 13 || i == 48 || i == 56 || i == 63) {
-                bitmap.write('0', i);
-                continue;
-            }
-        }
-
-        if (trgb !== '0810') {
-            if (i === 39) {
-                imdt = Buffer.from('00');
-            } else if (i == 56) {
-                if (trgbcd !== '750031') {
-                    const sno = Date.now().toString().slice(-8);
-                    imdt.write(sno, 3, 8);
-                }
-            }
-        }
-
         rdat = Buffer.concat([rdat, imdt]);
 
     }
-    //  const bitmapN = (parseInt(bitmap.slice(1),2).toString(16)).toUpperCase() ;
+//  const bitmapN = (parseInt(bitmap.slice(1), 2).toString(16)).toUpperCase();
     let bitmapN = '';
-    for (let pi = 1; pi + 8 <= bitmap.length; pi += 8) {
-        bitmapN += ('0' + (parseInt(bitmap.slice(pi, pi + 8), 2).toString(16)).toUpperCase()).slice(-2);
-        //              console.log( pi.toString().padStart(3,'0'), bitmapN) ;
+    for (let pi=1; pi+8 <= bitmap.length ; pi+=8 ) {
+        bitmapN += ('0'+ (parseInt(bitmap.slice(pi,pi+8),2).toString(16)).toUpperCase()).slice(-2) ;
     }
-    let pff = rdat.indexOf(0xff);
-    while (pff > 0) {
-        rdat = Buffer.concat([rdat.slice(0, pff), Buffer.from('ff', 'hex'), rdat.slice(pff)]);
-        pff = rdat.indexOf(0xff, pff + 2);
-    }
+    let pff = rdat.indexOf(0xff) ;
+    while (pff > 0 ) {
+        rdat = Buffer.concat([rdat.slice(0,pff), Buffer.from('ff','hex'), rdat.slice(pff)]) ;
+        pff = rdat.indexOf(0xff, pff+2) ;
+    } 
 
     rdat = Buffer.concat([dat.slice(0, 12), Buffer.from(trgb + bitmapN), rdat, Buffer.from('FFEF', 'hex')]);
-    console.log(cdate(), "return bitmap:", bitmapN.length, bitmapN);
-    //  print_bitmap(bitmap.slice(1).toString());
     this.socket.write(rdat);
     mylog(cdate(), "last len:", rdat.length);
 }
@@ -242,7 +197,6 @@ const trlayout = {
     3: { "l": 6, "t": "a", "fv": "f" },
     4: { "l": 12, "t": "a", "fv": "f" },
     7: { "l": 10, "t": "a", "fv": "f" },
-    11: { "l": 6, "t": "a", "fv": "f" },
     12: { "l": 6, "t": "a", "fv": "f" },
     13: { "l": 4, "t": "a", "fv": "f" },
     22: { "l": 3, "t": "a", "fv": "f" },
@@ -255,15 +209,10 @@ const trlayout = {
     44: { "l": 6, "t": "a", "fv": "v", "vl": 2 },
     46: { "l": 43, "t": "a", "fv": "v", "vl": 3 },
     47: { "l": 9, "t": "a", "fv": "v", "vl": 3 },
-    48: { "l": 19, "t": "a", "fv": "v", "vl": 3 },
+    48: { "l": 23, "t": "a", "fv": "v", "vl": 3 },
     49: { "l": 3, "t": "a", "fv": "f" },
     52: { "l": 16, "t": "a", "fv": "f" },
     55: { "l": 5, "t": "a", "fv": "v", "vl": 3 },
     56: { "l": 11, "t": "a", "fv": "v", "vl": 3 },
-    60: { "l": 35, "t": "a", "fv": "v", "vl": 3 },
-    61: { "l": 83, "t": "a", "fv": "v", "vl": 3 },
-    63: { "l": 60, "t": "a", "fv": "v", "vl": 3 },
-    70: { "l": 3, "t": "a", "fv": "f" },
-    126: { "l": 83, "t": "a", "fv": "v", "vl": 3 },
-    127: { "l": 50, "t": "a", "fv": "v", "vl": 3 }
+    60: { "l": 51, "t": "a", "fv": "v", "vl": 3 }
 }

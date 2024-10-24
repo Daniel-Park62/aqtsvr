@@ -1,5 +1,9 @@
 "use strict";
-const PGNM = '[Resend]';
+const moment = require('moment');
+const cdate = () => "[Resend] " + moment().format("MM/DD HH:mm:ss.SSS :");
+const logf = require('./lib/logfilec') ;
+logf(moment().format("YYYYMMDDHHmm") + "rs.log") ;
+
 const MAX_RESP_LEN = 1024 * 32;
 const Dsec = /^\d+$/.test(process.argv[2]) ? process.argv[2] * 1 : 5;
 let con;
@@ -12,14 +16,13 @@ async function main() {
   thread_start(threads_t,'/lib/tcpRequest.js');
   thread_start(threads_h,'/lib/httpRequest.js');
   con = await require('./db/db_con1') ;
-  console.log(PGNM,(new Date()).toLocaleString());
-  console.log("%s * start Resend check (%d 초 단위)", PGNM, Dsec);
+  console.log("%s * start Resend check (%d 초 단위)", cdate(), Dsec);
   // const sendhttp = require('./lib/sendHttp') ;
   setInterval(() => {
 
     const qstream = con.queryStream("SELECT a.pkey, t.proto FROM trequest a join ttcppacket t on(a.pkey = t.pkey) order by a.reqDt  ");
     qstream.on("error", err => {
-      console.log(PGNM, err); //if error
+      console.log(cdate(), err); //if error
     });
     qstream.on("fields", meta => {
       // console.log(meta); // [ ...]
@@ -40,7 +43,7 @@ async function main() {
   
     });
     // qstream.on("end", () => {
-    //     console.log(PGNM,"read ended");
+    //     console.log(cdate(),"read ended");
     // });
   }, Dsec * 1000);
 
@@ -59,24 +62,27 @@ function thread_start(threads, TYPEF) {
   for (let i = 0; i < 5; i++) {
 
     // const wdata =  [param.tcode, param.etc,  `${i},${pcnt}`  ];
-    // console.log(PGNM, wdata) ;
+    // console.log(cdate(), wdata) ;
     // msgs  += ':'+vlimit;
     const wkthread = new Worker(__dirname + TYPEF, wdata)
       .on('exit', () => {
         const i = threads.findIndex(w => w.wkthread == wkthread);
         if (i !== -1) threads.splice(i, 1);
 
-        // console.log(PGNM, i, `Thread exiting, ${threads_t.length} running...`);
+        // console.log(cdate(), i, `Thread exiting, ${threads_t.length} running...`);
         if (threads.length == 0) {
-          console.log(PGNM, (new Date()).toLocaleString(),'thread all ended !!')
+          console.log(cdate(), 'thread all ended !!')
         }
       });
     wkthread.on('error', (err) => {
-      console.log(PGNM,(new Date()).toLocaleString(), "Thread error ", err);
+      console.log(cdate(), "Thread error ", err);
     });
     wkthread.on('message', (dat) => {
-      // console.log(PGNM, "Thread data ", dat,cnt);
-      dat?.ok && cnt++;
+      // console.log(cdate(), "Thread data ", dat,cnt);
+      if (dat?.ok) {
+        cnt++ ;
+        if (cnt % 10 == 0 ) console.log(cdate(),"Number of processed", cnt) ;
+      } 
       if (dat?.svCook) {
         threads.forEach( t => t.wkthread.postMessage(dat)) ;
         return ;
@@ -90,12 +96,12 @@ function thread_start(threads, TYPEF) {
     // wkthread.postMessage(wdata) ;
 
   }
-  console.log("threads:", threads.length, wdata.workerData);
+  console.log(cdate(), "threads:", threads.length, wdata.workerData);
 
 }
 
 function endprog() {
-  console.log(PGNM, (new Date()).toLocaleString(),"program End", cnt,"건 수행");
+  console.log(cdate(),"program End", cnt,"건 수행");
   // child.kill('SIGINT') ;
   con.end();
   process.exit(0) ;
@@ -103,6 +109,6 @@ function endprog() {
 
 process.on('SIGINT', endprog);
 process.on('SIGTERM', endprog);
-process.on('uncaughtException', (err) => { console.log('uncaughtException:', err); process.exit(0) });
+process.on('uncaughtException', (err) => { console.log(cdate(),'uncaughtException:', err);  });
 // process.on('exit', endprog);
 main() ;
