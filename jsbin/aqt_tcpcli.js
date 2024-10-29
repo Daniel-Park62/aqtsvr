@@ -1,7 +1,7 @@
-var net = require('net');
+const net = require('net');
 const port = process.argv[2] ?? 10002;
 
-var socket = net.createConnection({port : port, host:'8.8.8.8', localAddress:'10.0.22.132'});
+const socket = net.createConnection({port : port, host:'0.0.0.0'});  
 socket.on('connect', function(){
 	console.log('connected to server!');
 	
@@ -15,7 +15,12 @@ socket.on('connect', function(){
 // 서버로부터 받은 데이터를 화면에 출력
 socket.on('data', function(chunk){
 	console.log('recv:' + chunk);
-  socket.write(Buffer.from('FFFD19','hex')) ;
+	try {
+		chunk.write('xx',6) ;
+	} catch (error) {
+		console.log(error) ;
+	}
+  socket.write(Buffer.from('DAWIN')) ;
 });
 // 접속이 종료됬을때 메시지 출력
 socket.on('end', function(){

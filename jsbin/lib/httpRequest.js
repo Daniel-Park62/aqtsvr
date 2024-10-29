@@ -165,8 +165,6 @@ function dataHandle(rdata) {
         const rtime = stime.clone().add(dfs, 's');
         const sms = Math.floor(stimem[1] / 1000);
         const rms = Math.floor(rtimem[1] / 1000);
-        //      if (rtimem < stimem && stime.isSameOrAfter(rtime, 'second')) rtime.add('1', 's');
-        //      const svctime = moment.duration(rtime.diff(stime)).asSeconds();
         const svctime = (rtimem[0] + rtimem[1] / 1_000_000_000) - (stimem[0] + stimem[1] / 1_000_000_000);
         let rDatas = Buffer.concat(recvData);
         const rsz = res.headers['content-length'] || rDatas.length;
@@ -191,16 +189,17 @@ function dataHandle(rdata) {
     }
     req.on('error', (e) => {
       // console.error(PGNM, e.message, e.errno);
-      const rtime = moment();
-      const rtimem = Math.ceil(process.hrtime()[1] / 1000);
-      if (rtimem < stimem && stime.isSameOrAfter(rtime, 'second')) rtime.add('1', 's');
-      const svctime = moment.duration(rtime.diff(stime)).asSeconds();
+      const rtimem = process.hrtime();
+      const dfs = rtimem[0] - stimem[0];
+      const rtime = stime.clone().add(dfs, 's');
       const sms = Math.floor(stimem[1] / 1000);
+      const rms = Math.floor(rtimem[1] / 1000);
+      const svctime = (rtimem[0] + rtimem[1] / 1_000_000_000) - (stimem[0] + stimem[1] / 1_000_000_000);
 
       if (!param.dbskip)
         con.query("UPDATE ttcppacket SET \
                       sdata = ?,  stime = ?, rtime = ?,  elapsed = ?, rcode = ? , rhead = ? , cdate = now() where pkey = ?"
-          , [Buffer.from(new_shead), stime.toSqlfmt(sms), rtime.toSqlfmt(rtimem), svctime, 999, e.message, rdata.pkey])
+          , [Buffer.from(new_shead), stime.toSqlfmt(sms), rtime.toSqlfmt(rms), svctime, 999, e.message, rdata.pkey])
           .catch(err => console.error(cdate(), 'update error:', err));
       ;
       parentPort.postMessage({ err: 1 });

@@ -28,8 +28,8 @@ function start_f1 {
   fi
   LOGF="${AQTLOG}/"`date +%Y%m%d`"_$$.rlog"
 
-  ./aqt_execMst.sh >/dev/null &
-  ./aqt_request >$LOGF 2>&1 &
+  nohup ./aqt_execMst.sh >/dev/null &
+  nohup ./aqt_request >$LOGF 2>&1 &
 }
 
 function stop_f1 {
@@ -57,8 +57,8 @@ function start_f2 {
   # LOGF1="${AQTLOG}/"`date +%Y%m%d`"_$$.jslog"
   # LOGF2="${AQTLOG}/"`date +%Y%m%d`rs"_$$.jslog"
 
-  node aqt_execJob & # >$LOGF1 2>&1 &
-  node aqt_resend & # >$LOGF2 2>&1 &
+  nohup node aqt_execJob & # >$LOGF1 2>&1 &
+  nohup node aqt_resend & # >$LOGF2 2>&1 &
 
 }
 function stop_f2 {

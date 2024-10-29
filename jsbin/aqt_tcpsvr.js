@@ -1,7 +1,7 @@
 // Include Nodejs' net module.
 const Net = require('net');
 // The port on which the server is listening.
-const port = 10002;
+const port = process.argv[2] ?? 10002;
 
 // Use net.createServer() in your code. This is just for illustration purpose.
 // Create a new TCP server.
@@ -16,6 +16,7 @@ server.listen(port, function() {
 // socket dedicated to that client.
 server.on('connection', function(socket) {
     console.log('A new connection has been established.');
+    socket.write('0056' + '0'.repeat(56)) ;
 
     // The server can also receive data from the client by reading from its socket.
     socket.on('data', function(chunk) {
