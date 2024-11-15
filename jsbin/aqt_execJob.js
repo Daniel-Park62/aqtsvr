@@ -28,6 +28,7 @@ setInterval(() => {
                   AND TCODE in (select code from tmaster where pro != '3') order by reqstartdt LIMIT 1" )
     .then(rows => {
       if (rows.length == 0) return;
+      con.query("UPDATE texecing set tcnt=0,ccnt=0,ecnt=0 where pkey = ?", [rows[0].pkey]) ;
       con.query("UPDATE texecjob set resultstat = 1, startDt = now(), endDt = null where pkey = ?", [rows[0].pkey])
         .catch(err => console.error(cdate(),err));
       if (rows[0].jobkind == 1)
@@ -54,7 +55,7 @@ function sendData(row) {
     .then(async dat => {
       if (dat[0].lvl == '0') {
         console.log(cdate(), "Origin ID 는 테스트 불가합니다.");
-        con.query("UPDATE texecjob set resultstat = 3, msg = 'Origin ID 는 테스트 불가합니다.', endDt = now() where pkey = ?", [row.pkey]);
+        con.query("UPDATE texecjob set resultstat = 3, msg = concat(msg,now(),':Origin ID 는 테스트 불가합니다.\r\n', endDt = now() where pkey = ?", [row.pkey]);
         return;
       }
       const sendMain = require('./lib/sendMain');

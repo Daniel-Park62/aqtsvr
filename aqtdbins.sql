@@ -441,6 +441,14 @@ CREATE TABLE IF NOT EXISTS `texecjob` (
   PRIMARY KEY (`pkey`)
 ) ENGINE=InnoDB  COMMENT='테스트작업요청\r\njobkind :\r\n0. tcode 에  etc의 정보를 이용하여 캡쳐수행\r\n1. tcode 에  infile 을 etc 조건적용하여 import\r\n3. tcode 애 infile 의 테스트 id를 복사해옴  infil -> tcode ( etc 조건적용 )\r\n9. 테스트송신';
 
+CREATE TABLE `texecing` (
+	`pkey` INT(10) UNSIGNED NOT NULL COMMENT 'jobid',
+	`tcnt` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '총건수',
+	`ccnt` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '처리건수',
+	`ecnt` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '오류건수',
+	PRIMARY KEY (`pkey`) USING HASH
+) ENGINE=MEMORY ;
+
 CREATE TABLE IF NOT EXISTS `thostmap` (
   `pkey` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `tcode` varchar(50) NOT NULL DEFAULT '',
@@ -525,7 +533,7 @@ CREATE TABLE IF NOT EXISTS `trequest` (
   `reqUser` varchar(50) NOT NULL DEFAULT '' COMMENT '요청자',
   `reqDt` timestamp NULL DEFAULT current_timestamp() COMMENT '요청일시',
   PRIMARY KEY (`pkey`)
-) ENGINE=InnoDB COMMENT='tr재전송요청';
+) ENGINE=MEMORY COMMENT='tr재전송요청';
 
 CREATE TABLE IF NOT EXISTS `tservice` (
   `pkey` int(10) unsigned NOT NULL AUTO_INCREMENT,

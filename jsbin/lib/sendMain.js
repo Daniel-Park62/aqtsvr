@@ -21,7 +21,7 @@ module.exports = async function (param) {
   if (!param.loop) param.loop = 1;
   param.loop--;
   let tcnt = 0;
-  let cnt = 0;
+  let sv_cnt = 0, cnt = 0;
   let ucnt = 0;
   let ecnt = 0;
   let condi = param.cond > ' ' ? "and (" + param.cond + ")" : "";
@@ -83,12 +83,12 @@ module.exports = async function (param) {
         console.log(cdate(), "# Number of iterations remaining :",param.loop );
         module.exports(param);
       } else {
+        if (param.hasOwnProperty('jobId'))
+          await con.query("UPDATE texecjob set resultstat = 2, tcnt= ?,ccnt=?,ecnt=?," + 
+                          "msg = concat(msg,now(),':',?,'\r\n' ), endDt = now() where pkey = ? ",
+        [tcnt, cnt, ecnt, cnt + " 건 수행완료.", param.jobId]);
         if (!dbskip)
           await con.query('call sp_summary(?)', [param.tcode]);
-
-        if (param.hasOwnProperty('jobId'))
-          await con.query("UPDATE texecjob set resultstat = 2, msg = concat(ifnull(msg,''),now(),': ',?,'\r\n' ), endDt = now() where pkey = ? ",
-            [cnt + " 건 수행", param.jobId]);
         console.log(cdate(),`${cnt} read, ${ucnt} update, ${ecnt} error`);
         param.exit && process.exit(0);
       }
@@ -130,18 +130,22 @@ module.exports = async function (param) {
       wkthread.on('error', (err) => {
         console.log(cdate(), "Thread error ", err);
         if (param.hasOwnProperty('jobId'))
-          con.query("UPDATE texecjob set resultstat = 3, msg = concat(msg, ?, now(),':', ?,?,'\r\n'), endDt = now() where pkey = ?", [msgs, err,cnt, param.jobId]);
+          con.query("UPDATE texecjob set tcnt=?,ccnt=?,ecnt=?,resultstat = 3, msg = concat(msg, now(),':', ?,'\r\n'), endDt = now() where pkey = ?", [tcnt,cnt,ecnt, err, param.jobId]);
       });
       wkthread.on('message', (dat) => {
         // console.log(PGNM, "Thread data ", dat);
         if (dat?.svCook) {
           threads.forEach(t => t.wkthread.postMessage(dat));
           return;
-        }
+        } 
         dat?.ok && ucnt++;
         dat?.err && ecnt++;
         for (const w of threads) { if (w.wkthread == wkthread) { w.busy = 0; break; } }
-
+        if (param.hasOwnProperty('jobId') && sv_cnt !== cnt ) {
+          con.query("insert into texecing (pkey,tcnt,ccnt,ecnt) values (?,?,?,?) " +
+            "on duplicate key update tcnt = ?, ccnt = ?, ecnt= ? ", [param.jobId, tcnt, cnt,ecnt, tcnt, cnt,ecnt]);
+          sv_cnt = cnt ;
+        }
       });
 
       threads.push({ id: wkthread.threadId, wkthread });

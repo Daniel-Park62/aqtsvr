@@ -1,9 +1,5 @@
 
-FL=`ls -t ${AQTLOG}/*[rms]log 2>/dev/null | head -1`
-
-if [ -n $FL ]; then 
-  cat $FL ; echo $FL ; 
-else
-  echo 'Not found log'
-fi
-
+for FL in `ls -t ${AQTLOG}/*.log 2>/dev/null | head -2` ;
+do
+  echo $FL ; tail -100 $FL ; echo "---<< end of file >>---" ; 
+done
