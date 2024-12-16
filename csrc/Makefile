@@ -7,7 +7,7 @@ TMAXDIR = /tmax
 
 LDFLAGS = 
 LDLIBS = -L${MARIADB_HOME}/lib -L${TMAXDIR}/lib64 -lmariadb -lcli
-TARGETS = aqt_sendS aqt_sendM aqt_request aqt_reqsub aqt_sendM2 aqt_rnsend2
+TARGETS = aqt_sendS aqt_sendM aqt_sendM_new aqt_request aqt_reqsub aqt_sendM2 aqt_rnsend2
 .PHONY: all clean
 all : $(TARGETS:%=$(BDIR)/%)
 
@@ -25,6 +25,9 @@ ${BDIR}/aqt_request: aqt_request.c
 
 ${BDIR}/aqt_sendM: aqt_sendM.c
 	${CC} ${CFLAGS} -o $@ $? ${LDLIBS} 
+
+${BDIR}/aqt_sendM_new: aqt_sendM_new.c
+	${CC} ${CFLAGS} -o $@ $? -D_TMAX_MTLIB  -pthread -L${MARIADB_HOME}/lib -L${TMAXDIR}/lib64  -lmariadb -lclithr
 
 ${BDIR}/aqt_reqsub: aqt_reqsub.c 
 	${CC} ${CFLAGS} -o $@ $? ${LDLIBS} 

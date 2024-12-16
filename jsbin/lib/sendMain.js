@@ -17,7 +17,7 @@ let con = null;
 let dbskip = false;
 
 module.exports = async function (param) {
-  con = param.conn;
+  con = await require('../db/db_con1'); // param.conn;
   if (!param.loop) param.loop = 1;
   param.loop--;
   let tcnt = 0;
@@ -43,10 +43,11 @@ module.exports = async function (param) {
 
   let sv_time;
   let delay = 0;
-
-  for await (const row of con.queryStream("SELECT t.pkey,o_stime " +
+  const rows = await con.query("SELECT t.pkey,o_stime " +
     "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
-    "where t.tcode = ? " + condi + orderby + vlimit, [param.tcode])) {
+    "where t.tcode = ? " + condi + orderby + vlimit, [param.tcode]) ;
+
+  for await (const row of rows ) {
     cnt++;
     delay = param.interval;
     if (param.exectype == '1') {

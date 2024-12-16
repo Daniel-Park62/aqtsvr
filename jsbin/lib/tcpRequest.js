@@ -5,6 +5,7 @@ const moment = require('moment');
 const Net = require('net');
 const cParser = require('./cookParser') ;
 const PGNM = '[tcpRequest]';
+const cdate = () => "[tcpRequest] " + moment().format("MM/DD HH:mm:ss.SSS :");
 moment.prototype.toSqlfmt = function (ms) {
   return this.format('YYYY-MM-DD HH:mm:ss.' + ms);
 };
@@ -32,14 +33,19 @@ parentPort.on('message',async (pkey) => {
     " if(ifnull(m.tport2,IFNULL(c.tport,0))>0, ifnull(m.tport2,c.tport), dstport) dstport,uri,sdata, slen " +
     "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
     "where t.pkey = ? ", [pkey])
-    .then(rdata => dataHandle(rdata[0]));
+    .then(rdata => dataHandle(rdata[0]))
+    .catch(err => {
+      console.error(cdate(), 'select error:', pkey, err);
+      parentPort.postMessage({ err: 1 });
+  });
+
 });
 
 function checkCon(id) {
   if (id > 0) clearInterval(id);
   return setInterval(() => {
     con.query('select 1');
-  }, 30 * 60 * 1000) ;
+  }, 10 * 60 * 1000) ;
 }
 function dataHandle(rdata) {
   let recvData = [];

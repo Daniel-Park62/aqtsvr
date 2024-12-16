@@ -18,7 +18,7 @@ let con;
 })();
 const ckMap = new Map();
 
-let mybns = checkCon(0);
+//let mybns = checkCon(0);
 // const {tcode, cond, dbskip, interval, limit, loop } = workerData ;
 let param = workerData;
 // console.log("thread id:",threadId, param);
@@ -27,18 +27,26 @@ parentPort.on('message', (pkey) => {
     saveCookie(pkey.svCook, pkey.svKey);
     return;
   }
-  mybns = checkCon(mybns);
+  //mybns = checkCon(mybns);
+  con.ping().catch(err => {
+    console.error(cdate(),err) ;
+    con.reset() ;
+  }) ;
   con.query("SELECT t.tcode,t.appid, t.pkey,o_stime, if( ifnull(m.thost2,IFNULL(c.thost,''))>'',ifnull(m.thost2,c.thost) ,dstip) dstip," +
     " if(ifnull(m.tport2,IFNULL(c.tport,0))>0, ifnull(m.tport2,c.tport), dstport) dstport,uri,method,sdata, rlen , ifnull(c.tenv,'') encval " +
     "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
     "where t.pkey = ? ", [pkey])
-    .then(rdata => dataHandle(rdata[0]));
+    .then(rdata => dataHandle(rdata[0]))
+    .catch(err => {
+      console.error(cdate(), 'select error:', pkey, err);
+      parentPort.postMessage({ err: 1 });
+  });
 });
 function checkCon(id) {
   if (id > 0) clearInterval(id);
   return setInterval(() => {
     con.query('select 1');
-  }, 30 * 60 * 1000);
+  }, 10 * 60 * 1000);
 }
 function dataHandle(rdata) {
   let sdataStr = rdata.encval.length > 1 ? iconv.decode(rdata.sdata, rdata.encval).toString() : rdata.sdata.toString();
@@ -168,7 +176,7 @@ function dataHandle(rdata) {
         const svctime = (rtimem[0] + rtimem[1] / 1_000_000_000) - (stimem[0] + stimem[1] / 1_000_000_000);
         let rDatas = Buffer.concat(recvData);
         const rsz = res.headers['content-length'] || rDatas.length;
-        // console.log(PGNM, stime.toSqlfmt(), rtime.toSqlfmt(), svctime, 'id=',rdata.pkey, 'rcv len=', rsz );
+        // console.log(cdate(), stime.toSqlfmt(), rtime.toSqlfmt(), svctime, 'id=',rdata.pkey, 'rcv len=', rsz );
         // let new_d = Buffer.from(resdata,'binary') ;
         con.query("UPDATE ttcppacket SET \
                     rdata = ?, sdata = ?, stime = ?, rtime = ?,  elapsed = ?, rcode = ? ,rhead = ?, rlen = ? ,cdate = now() where pkey = ? "
@@ -251,4 +259,4 @@ function dataHandle(rdata) {
     ckMap.set(svkey, sv_ckData);
   }
 
-process.on('SIGINT', parentPort.close);
+process.on('SIGINT', parentPort.close );

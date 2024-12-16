@@ -391,7 +391,12 @@ REPEAT:
 
     if (_iTotCnt % 100 == 0)
       print_status();
-
+    if (execkey > 0)
+    {
+      char query[2048] ;
+      sprintf(query, "UPDATE texecing SET ccnt=%d WHERE pkey=%ld", _iTotCnt, execkey);
+      mysql_real_query(conn, query, strlen(query)) ;
+    }
     if (_interval && _iTimeChk == 0)
       usleep(_interval * 1000);
 

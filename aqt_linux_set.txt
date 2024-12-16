@@ -85,8 +85,7 @@ default-character-set   = utf8mb4
 no-auto-rehash
 default-character-set   = utf8mb4
 
-
-[mariadb_safe]
+[mariadb-safe]
 open-files-limit = 8192
 log-error=/db/log/mariadb.log
 pid-file=/db/log/mariadb.pid
@@ -160,3 +159,56 @@ String[] IP_HEADER_CANDIDATES = {
         "HTTP_VIA",
         "REMOTE_ADDR"
     };
+
+■ MariaDB Memory 종류
+
+- MariaDB Memory는 두가지로 분류가된다. 모든 세션이 공유하고 사용하는 Global Memory 영역과 각각의 세션들별로 사용되는 Session Memory영역이 있다.
+
+
+■ Global Memory 영역
+ DB가 최초 기동되었을 때에는 메모리를 최소한만 사용하다가 설정된 값 까지 증가하며 증가한 이후에는 "메모리를 반환하지 않고" 설정 된 값 이내에서 계속 사용됩니다.
+(오라클의 경우 DB기동시 설정된 값 만큼 메모리를 할당 받고 올라가는 반면 Mariadb 는 기동시 설정된 메모리 값만큼 할당 받는것이 아닌 설정된 값 만큼 서서히 증가하게 됩니다)
+
+1) Innodb_buffer_pool_size
+- 디스크에서 데이터를 메모리에 캐싱함과 동시에 데이터의 변경을 버퍼링하는 역할을 수행한다. 일반적으로 전체 메모리의 50% ~ 80%까지 설정하며 낮은 값부터 조금씩 크기를 올려가며 적절한 값을 찾는 것이 것이 좋다.
+
+2) Key_buffer_size 
+- MyISAM의 키 버퍼는 인덱스를 메모리에 저장하는 버퍼의 크기이다. 인덱스만 캐시하기 때문에 InnoDB의 버퍼 풀만큼 할당해서는 안된다. MyISAM 테이블을 전혀 사용하지 않는 경우 64K와 같이 매우 낮은 값으로 설정할 수 있습니다.
+
+3) innodb_log_buffer_size
+- InnoDB가 디스크의 로그 파일에 로그를 기록하는 데 사용하는 버퍼의 크기입니다. 이 값을 늘리면 커밋하기 전에 디스크 I/O를 수행할 필요 없이 더 큰 트랜잭션을 실행할 수 있습니다.
+
+4) tmp_table_size
+- 메모리에 생성되는 임시 테이블의 최대 크기를 설정한다.
+
+→ Global 메모리 = Innodb_buffer_pool_size + Key_buffer_size + innodb_log_buffer_size + tmp_table_size
+
+■ Session Memory 영역
+Mariadb session 별로 사용되어지는 메모리 공간으로 Max connection 설정 값과 관련이 있습니다.
+(커넥션을 맺고만 있을 경우에는 커넥션에 필요한 최소한의 메모리만 사용되어지며 조인, 정렬 등이 필요할 경우에는 아래 설정된 값만큼을 메모리에서 사용하게 됩니다.
+때문에 정확한 예측값은 동시에 Active한 세션 수 이지만 기본적으로는 Max connection 수 만큼 동시 사용 세션이 수행될 수 있기에 아래 공식으로 계산되어 집니다.) 
+
+1) sort_buffer_size
+- 정렬을 수행하는 각 세션은 이 양의 메모리가 있는 버퍼를 할당합니다.  16k는 권장되는 최소값입니다.
+
+2) read_buffer_size
+-  sequential scan를 수행하는 각 스레드는 스캔된 각 테이블에 대해 이 크기의 버퍼를 바이트 단위로 할당한다. ORDER BY 에서 사용된다.
+
+3) read_rnd_buffer_size
+- 키 정렬 후 정렬된 순서 로 MyISAM 테이블에서 행을 읽을 때 사용되는 버퍼의 크기(바이트)입니다
+
+4) join_buffer_size
+- 인덱스를 사용할 수 없고 대신 전체 테이블 스캔을 수행하는 쿼리에 사용되는 버퍼의 최소 크기(바이트)입니다. 조인은 항상 최소 크기를 할당하므로 메모리 문제를 인식하고 있지만 인덱스를 추가할 때 더 빠른 전체 조인을 얻기 위해 늘리는 것은 불가능합니다. 
+
+5) thread_stack
+- 각 스레드의 스택 크기입니다. 너무 작게 설정하면 저장 프로시저의 재귀 깊이와 서버가 메모리에서 처리할 수 있는 SQL 문의 복잡성을 제한합니다
+
+6) binlog_cache_size
+- 바이너리 로그가 활성화되어 경우,이 변수가 트랜잭션 중에 바이너리 로그 변경 기록을 보유 캐시, 당 연결, 바이트 크기를 결정합니다.
+
+7) Max connection
+- 최대 동시 클라이언트 연결 수입니다
+
+ 
+
+     

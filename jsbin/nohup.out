@@ -30,3 +30,90 @@ FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap o
 19: 00007FF735214B94 
 20: 00007FFCBB5F7374 BaseThreadInitThunk+20
 21: 00007FFCBD3FCC91 RtlUserThreadStart+33
+F:\AQTAPP\aqtsvr\jsbin\aqt_execJob.js:22
+con.query("UPDATE texecjob set resultstat = 3, endDt = now() where resultstat = 1")
+    ^
+
+TypeError: con.query is not a function
+    at Object.<anonymous> (F:\AQTAPP\aqtsvr\jsbin\aqt_execJob.js:22:5)
+    at Module._compile (node:internal/modules/cjs/loader:1364:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)
+    at Module.load (node:internal/modules/cjs/loader:1203:32)
+    at Module._load (node:internal/modules/cjs/loader:1019:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:128:12)
+    at node:internal/main/run_main_module:28:49
+
+Node.js v18.20.4
+F:\AQTAPP\aqtsvr\jsbin\aqt_execJob.js:22
+con.query("UPDATE texecjob set resultstat = 3, endDt = now() where resultstat = 1")
+    ^
+
+TypeError: con.query is not a function
+    at Object.<anonymous> (F:\AQTAPP\aqtsvr\jsbin\aqt_execJob.js:22:5)
+    at Module._compile (node:internal/modules/cjs/loader:1364:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)
+    at Module.load (node:internal/modules/cjs/loader:1203:32)
+    at Module._load (node:internal/modules/cjs/loader:1019:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:128:12)
+    at node:internal/main/run_main_module:28:49
+
+Node.js v18.20.4
+F:\AQTAPP\aqtsvr\jsbin\aqt_execJob.js:22
+con.query("UPDATE texecjob set resultstat = 3, endDt = now() where resultstat = 1")
+    ^
+
+TypeError: con.query is not a function
+    at Object.<anonymous> (F:\AQTAPP\aqtsvr\jsbin\aqt_execJob.js:22:5)
+    at Module._compile (node:internal/modules/cjs/loader:1364:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)
+    at Module.load (node:internal/modules/cjs/loader:1203:32)
+    at Module._load (node:internal/modules/cjs/loader:1019:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:128:12)
+    at node:internal/main/run_main_module:28:49
+
+Node.js v18.20.4
+[aqtExecJob] 11/20 15:31:30.462 : * start Execute Job
+AqtTimeOut: 30000  (set AqtTimeOut=ms)
+[aqtExecJob] 11/20 15:31:50.602 : pid=> 13868
+[sendMain] 11/20 15:31:50.612 : threads: 1 { dbskip: true, aqttimeout: 30000 }
+[sendMain] 11/20 15:31:50.619 : Start 테스트id(K001) 작업수(1) cond() limit() data건수(469) pid(13868)
+[sendMain] 11/20 15:32:19.324 : K001 Count: 469 *Jobid:64 *** read ended ***
+[sendMain] 11/20 15:32:19.845 : thread all ended !!
+[sendMain] 11/20 15:32:19.848 : 469 read, 0 update, 469 error
+[aqtExecJob] 11/22 15:50:55.350 : * start Execute Job
+[aqtExecJob] 11/22 15:50:57.370 : SqlError: Cannot execute new commands: connection closed
+sql: select pkey, jobkind, tcode, tnum,dbskip, exectype,etc,in_file,                   reqnum, repnum, limits, ifnull(msg,'') msg from texecjob                 WHERE reqstartdt <= NOW() and resultstat=0 and jobkind in (1,9)                   AND TCODE in (selec... - parameters:[]
+    at module.exports.createError (F:\AQTAPP\aqtsvr\jsbin\node_modules\mariadb\lib\misc\errors.js:66:10)
+    at Query.throwUnexpectedError (F:\AQTAPP\aqtsvr\jsbin\node_modules\mariadb\lib\cmd\command.js:39:24)
+    at Query.throwNewError (F:\AQTAPP\aqtsvr\jsbin\node_modules\mariadb\lib\cmd\command.js:69:22)
+    at Connection.addCommandDisabled (F:\AQTAPP\aqtsvr\jsbin\node_modules\mariadb\lib\connection.js:1162:21)
+    at Connection.query (F:\AQTAPP\aqtsvr\jsbin\node_modules\mariadb\lib\connection.js:1408:10)
+    at new Promise (<anonymous>)
+    at ConnectionPromise.query (F:\AQTAPP\aqtsvr\jsbin\node_modules\mariadb\lib\connection-promise.js:99:12)
+    at Timeout._onTimeout (F:\AQTAPP\aqtsvr\jsbin\aqt_execJob.js:36:11) {
+  sqlMessage: 'Cannot execute new commands: connection closed',
+  sql: "select pkey, jobkind, tcode, tnum,dbskip, exectype,etc,in_file,                   reqnum, repnum, limits, ifnull(msg,'') msg from texecjob                 WHERE reqstartdt <= NOW() and resultstat=0 and jobkind in (1,9)                   AND TCODE in (selec... - parameters:[]",
+  fatal: true,
+  errno: 45013,
+  sqlState: '08S01',
+  code: 'ER_CMD_CONNECTION_CLOSED'
+}
+[aqtExecJob] 11/22 17:06:25.004 : * start Execute Job
+AqtTimeOut: 30000  (set AqtTimeOut=ms)
+[aqtExecJob] 11/22 17:07:13.249 : pid=> 5896
+[sendMain] 11/22 17:07:13.254 : threads: 1 { dbskip: true, aqttimeout: 30000 }
+[sendMain] 11/22 17:07:13.260 : Start 테스트id(K001) 작업수(1) cond() limit() data건수(469) pid(5896)
+[sendMain] 11/22 17:07:41.930 : K001 Count: 469 *Jobid:64 *** read ended ***
+[sendMain] 11/22 17:07:42.444 : thread all ended !!
+[sendMain] 11/22 17:07:42.445 : 469 read, 0 update, 469 error
+[aqtExecJob] 11/22 17:09:45.789 : exec checking.. 100
+[aqtExecJob] 11/22 17:13:06.420 : exec checking.. 200
+[aqtExecJob] 11/22 17:16:27.110 : exec checking.. 300
+F:\AQTAPP\aqtsvr\logs\202411221717rs.log
+F:\AQTAPP\aqtsvr\logs\202411251014rs.log
+F:\AQTAPP\aqtsvr\logs\202411251610.log
+g
+F:\AQTAPP\aqtsvr\logs\202411251629rs.log
+F:\AQTAPP\aqtsvr\logs\202411251706.log
+g
+F:\AQTAPP\aqtsvr\logs\202412061409rs.log

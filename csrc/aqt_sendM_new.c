@@ -52,10 +52,11 @@ static unsigned int _iUpdCnt = 0;
 
 static char *tux_sndbuf = NULL;
 static char *tux_rcvbuf = NULL;
+
 #define MAXCTX 4
 static int ctx[MAXCTX] = {0};
-static char conn_val[MAXCTX][VNAME_SZ] ;
-static ctxcnt = 1;
+static char thost[MAXCTX][50] ;
+static int icLen = 1;
 
 static char oltp_name[L_TR_CODE + 1];
 static char _test_code[VNAME_SZ];
@@ -72,6 +73,8 @@ static int update_db(unsigned long, char *, long rlen, char *stime, char *rtime,
 static int update_db_fail(unsigned long, char *, long, char *stime, char *rtime, char *, double gap);
 
 static int init_context(char *conn_label);
+static void find_context(char *);
+static int set_context(void);
 
 static int LOGprint(FILE *fp_log, char ltype, const char *func, int line_no, const char *fmt, ...)
 {
@@ -212,9 +215,7 @@ int main(int argc, char *argv[])
     return (1);
   }
 
-  if (setContext()) return(1);
-
-
+  if (set_context()) return(1);
 
   MSGREC msg;
   // LOGINFO("%ld<-mkey", msgkey) ;
@@ -229,6 +230,7 @@ int main(int argc, char *argv[])
   };
   MYSQL_RES *result;
   MYSQL_ROW row;
+  char sv_dstip[50] = "";
 
   while (1)
   {
@@ -241,7 +243,7 @@ int main(int argc, char *argv[])
 
     _iDB = msg.data.dbu;
 
-    sprintf(query, "SELECT pkey, uri, slen, sdata "
+    sprintf(query, "SELECT pkey, uri, slen, sdata, dstip "
                    " FROM ttcppacket "
                    " WHERE pkey = %ld ",
             msg.data.pkey);
@@ -291,6 +293,8 @@ int main(int argc, char *argv[])
 
     strcpy(tux_sndbuf, row[3]);
     slen = strlen((char *)tux_sndbuf);
+    if (strcmp(sv_dstip,row[4])) find_context(row[4]);
+    strcpy(sv_dstip,row[4]);
     tret = tpcall(oltp_name, (char *)tux_sndbuf, slen, (char **)&tux_rcvbuf, (long *)&rlen, TPNOFLAGS);
 
     etv = *getStrdate(c_ettime, 20);
@@ -321,8 +325,11 @@ int main(int argc, char *argv[])
   Closed();
   exit(0);
 }
-int setContext() {
 
+static int set_context() {
+
+  char cquery[1000];
+  memset(cquery, 0, sizeof(cquery));
   _tpinfo = (TPSTART_T *)tpalloc("TPSTART",NULL,0) ;
 	if (_tpinfo == NULL) {
 		LOGERROR("TP ALLOC error : %s", tpstrerror(tperrno)) ;
@@ -332,13 +339,35 @@ int setContext() {
 	
 	_tpinfo->flags = TPMULTICONTEXTS;
 	
-  if ((init_context(_conn_label)) != 0)
+  if ( (ctx[0] = init_context(_conn_label)) == -1)
   {
     Closed();
-    return (1);
+    return(1);
   }
 
-    if ((tux_sndbuf = (char *)tpalloc("CARRAY", NULL, MAXLN2M)) == NULL)
+  snprintf(cquery, sizeof(cquery),
+           "SELECT * from (SELECT thost, thost2 FROM thostmap WHERE tcode in ('%%','%s') order by thost,tcode desc) a group by thost "
+           , _test_code);
+
+  if (mysql_query(conn, cquery))
+  {
+    LOGERROR("query error : %s", mysql_error(conn));
+    return (-1);
+  }
+  MYSQL_RES *result = mysql_store_result(conn);
+  if (result == NULL)
+    return (-1);
+  MYSQL_ROW row ;
+  icLen = 1;
+  while ( (row = mysql_fetch_row(result)) ) {
+    strcpy(thost[icLen],row[0]);
+    ctx[icLen] = init_context(row[1]) ;
+    icLen++ ;
+  }
+
+  mysql_free_result(result);
+
+  if ((tux_sndbuf = (char *)tpalloc("CARRAY", NULL, MAXLN2M)) == NULL)
   {
     LOGERROR("sendbuf alloc failed[%s]", tpstrerror(tperrno));
     Closed();
@@ -355,8 +384,17 @@ int setContext() {
   return 0 ;
 
 }
+static void find_context(char *dstip) {
+  for (int i=1; i<icLen ; i++ ) {
+    if (!strcmp(dstip,thost[i])) {
+      tpsetctxt(ctx[i],TPNOFLAGS) ;
+      return ;
+    }
+  }
+  tpsetctxt(ctx[0],TPNOFLAGS) ;
+}
 
-int init_context(char *conn_label)
+static int init_context(char *conn_label)
 {
 	int id ;
 	if(tmaxreadenv(TP_ENV_FILE, conn_label) < 0 ){
@@ -386,8 +424,11 @@ void Closed()
     tpfree((char *)tux_sndbuf);
   if (_tpinfo)
     tpfree((char *)_tpinfo);
+  for (int i=0; i<icLen ; i++) {
+    tpsetctxt(ctx[i],TPNOFLAGS);
+    tpend();
+  }
 
-  tpend();
   closeDB();
 }
 
