@@ -186,7 +186,23 @@ module.exports = function (args) {
             console.log(PGNM, 'Unsupported Ethertype: ' + PROTOCOL.ETHERNET[ret.info.type], ret.info.type);
     });
     parser.on('end', () => { setTimeout(endprog, 1000) });
+
+    function write_rec(datas) {
+        return new Promise(function (resolve, reject) {
+            if (datas.slen > datas.sdata.length) reject();
+            let pos = datas.sdata.indexOf(0x00);
+            if (pos == -1) pos = datas.sdata.length;
+            let rec = "~AQTD~" + datas.uri.padEnd(32, ' ') + datas.stime.padEnd(26, ' ') + datas.srcip.padEnd(15, ' ') + util.format('%d', datas.srcport).padStart(5, '0')
+                + datas.dstip.padEnd(15, ' ') + util.format('%d', datas.dstport).padStart(5, '0') + util.format('%d', datas.seqno).padStart(15, '0')
+                + util.format('%d', datas.ackno).padStart(15, '0') + util.format('%d', datas.slen).padStart(8, '0');
+            let brec = Buffer.concat([Buffer.from(rec), datas.sdata.slice(0, pos)]);
+            process.stdout.write(brec.length.toString().padStart(ISO_8601,'0') + brec);
+            resolve(icnt++);
+        });
+    }
+
     async function insert_data(datas) {
+        if (args.norcv == 'X') return await write_rec(datas) ;
         let rcd = 0;
         let emsg = null;
         // AJP 일때 응답코드값 

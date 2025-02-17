@@ -25,7 +25,7 @@ AQT TMAX TCP RCV & SEND
 
 #include "aqt2.h"
 
-#define MAXLN2M 1000000
+#define MAXLN2M 1_000_000
 
 int fcntl(int __fd, int __cmd, ...);
 static int LOGprint(char ltype, const char *func, int line_no, const char *fmt, ...);

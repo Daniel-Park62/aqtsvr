@@ -14,13 +14,13 @@ socket.on('connect', function(){
 
 // 서버로부터 받은 데이터를 화면에 출력
 socket.on('data', function(chunk){
-	console.log('recv:' + chunk);
+	console.log('recv:' , chunk);
 	try {
 		chunk.write('xx',6) ;
 	} catch (error) {
 		console.log(error) ;
 	}
-  socket.write(Buffer.from('DAWIN')) ;
+//  socket.write(Buffer.from('DAWIN')) ;
 });
 // 접속이 종료됬을때 메시지 출력
 socket.on('end', function(){
