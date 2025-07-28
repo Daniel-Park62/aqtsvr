@@ -4,6 +4,8 @@ const MAX_RESP_LEN = 1024 * 1024 * 2;
 const SIZE_BLOB = 1024 * 1024 * 2;
 const PGNM = "capToDb_tmax";
 const { resolve } = require('path');
+require('events').EventEmitter.defaultMaxListeners = Infinity ;
+
 let con, child;
 
 process.on('warning', (warning) => {
