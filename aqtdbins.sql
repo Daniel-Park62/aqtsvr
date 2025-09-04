@@ -413,33 +413,38 @@ CREATE TABLE IF NOT EXISTS `tapplication` (
 
 INSERT INTO tapplication (appid, appnm, manager ) VALUES('AP01','기본','AQT') ;
 
-CREATE TABLE IF NOT EXISTS `texecjob` (
-  `pkey` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `jobkind` smallint(5) unsigned NOT NULL DEFAULT 9 COMMENT '0.패킷캡쳐 1.패킷파일import 3.패킷복제 9.테스트수행',
-  `tcode` varchar(50) NOT NULL DEFAULT '',
-  `tdesc` varchar(80) NOT NULL DEFAULT '' COMMENT '테스트설명',
-  `tnum` smallint(5) unsigned NOT NULL DEFAULT 10 COMMENT '쓰레드 수',
-  `dbskip` char(1) NOT NULL DEFAULT '0' COMMENT '1. dbupdate skip',
-  `etc` varchar(256) NOT NULL DEFAULT '' COMMENT '기타 선택조건',
-  `in_file` varchar(100) NOT NULL DEFAULT '' COMMENT '입력파일 or src Tcode',
-  `limits` varchar(30) DEFAULT '' COMMENT '처리건수 ( 예: 1,10 )',
-  `outlogdir` varchar(50) NOT NULL DEFAULT '' COMMENT 'out로그위치',
-  `tuser` varchar(50) NOT NULL DEFAULT '',
-  `tdir` varchar(50) NOT NULL DEFAULT '',
-  `tenv` varchar(50) NOT NULL DEFAULT '',
-  `reqstartDt` datetime NOT NULL DEFAULT current_timestamp() COMMENT '작업시작요청일시',
-  `exectype` smallint(5) unsigned NOT NULL DEFAULT 0 COMMENT '0.즉시실행  1.송신시간에 맞추어',
-  `resultstat` smallint(5) unsigned NOT NULL DEFAULT 0 COMMENT '0. 미실행 1.수행중  2.완료 3.실행오류',
-  `reqnum` smallint(5) unsigned NOT NULL DEFAULT 0 COMMENT '재요청횟수 -> (송신간격 or uri별건수)',
-  `repnum` int(10) unsigned NOT NULL DEFAULT 1 COMMENT '반복횟수',
- 	`tcnt` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '대상건수',
+CREATE TABLE IF NOT EXISTS  `texecjob` (
+	`pkey` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+	`jobkind` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '9' COMMENT '0.패킷캡쳐 1.패킷파일import 3.패킷복제 9.테스트수행',
+	`tcode` VARCHAR(50) NOT NULL DEFAULT '' COLLATE 'utf8_general_ci',
+	`tdesc` VARCHAR(80) NOT NULL DEFAULT '' COMMENT '테스트설명' COLLATE 'utf8_general_ci',
+	`tnum` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '10' COMMENT '쓰레드 수',
+	`dbskip` CHAR(1) NOT NULL DEFAULT '0' COMMENT '1. dbupdate skip' COLLATE 'utf8_general_ci',
+	`etc` VARCHAR(256) NOT NULL DEFAULT '' COMMENT '기타 선택조건' COLLATE 'utf8_general_ci',
+	`in_file` VARCHAR(100) NOT NULL DEFAULT '' COMMENT '입력파일 or src Tcode' COLLATE 'utf8_general_ci',
+	`limits` VARCHAR(30) NOT NULL DEFAULT '' COMMENT '처리건수 ( 예: 1,10 )' COLLATE 'utf8_general_ci',
+	`cmdl` VARCHAR(256) NOT NULL DEFAULT '' COMMENT '수행명령' COLLATE 'utf8_general_ci',
+	`tuser` VARCHAR(50) NOT NULL DEFAULT '' COLLATE 'utf8_general_ci',
+	`tdir` VARCHAR(50) NOT NULL DEFAULT '' COLLATE 'utf8_general_ci',
+	`tenv` VARCHAR(50) NOT NULL DEFAULT '' COLLATE 'utf8_general_ci',
+	`thost` VARCHAR(50) NOT NULL DEFAULT '' COLLATE 'utf8_general_ci',
+	`tport` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+	`reqstartDt` DATETIME NOT NULL DEFAULT current_timestamp() COMMENT '작업시작요청일시',
+	`exectype` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0' COMMENT '0.즉시실행  1.송신시간에 맞추어',
+	`resultstat` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0' COMMENT '0. 미실행 1.수행중  2.완료 3.실행오류',
+	`reqnum` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0' COMMENT '재요청횟수 -> (송신간격 or uri별건수)',
+	`repnum` INT(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '반복횟수',
+	`tcnt` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '대상건수',
 	`ccnt` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '처리건수',
 	`ecnt` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '오류건수',
-  `startDt` datetime DEFAULT NULL COMMENT '작업시작시간',
-  `endDt` datetime DEFAULT NULL COMMENT '작업종료시간',
-  `msg` mediumtext DEFAULT '' COMMENT '작업메세지',
-  PRIMARY KEY (`pkey`)
-) ENGINE=InnoDB  COMMENT='테스트작업요청\r\njobkind :\r\n0. tcode 에  etc의 정보를 이용하여 캡쳐수행\r\n1. tcode 에  infile 을 etc 조건적용하여 import\r\n3. tcode 애 infile 의 테스트 id를 복사해옴  infil -> tcode ( etc 조건적용 )\r\n9. 테스트송신';
+	`startDt` DATETIME NULL DEFAULT NULL COMMENT '작업시작시간',
+	`endDt` DATETIME NULL DEFAULT NULL COMMENT '작업종료시간',
+	`msg` MEDIUMTEXT NULL DEFAULT '' COMMENT '작업메세지' COLLATE 'utf8_general_ci',
+	PRIMARY KEY (`pkey`) USING BTREE
+)
+COMMENT='테스트작업요청\r\njobkind :\r\n0. tcode 에  etc의 정보를 이용하여 캡쳐수행\r\n1. tcode 에  infile 을 etc 조건적용하여 import\r\n3. tcode 애 infile 의 테스트 id를 복사해옴  infil -> tcode ( etc 조건적용 )\r\n9. 테스트송신'
+COLLATE='utf8_general_ci'
+ENGINE=InnoDB;
 
 CREATE TABLE `texecing` (
 	`pkey` INT(10) UNSIGNED NOT NULL COMMENT 'jobid',

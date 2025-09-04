@@ -1,8 +1,2 @@
-var crypto = require('crypto')
-  2 const util = require('util');
-  3 util.inspect.defaultOptions.maxArrayLength = null;
-  4 
-  5
-  6 console.log(crypto.getCiphers())
 
-  
+git 
