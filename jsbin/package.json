@@ -16,7 +16,7 @@
   "license": "ISC",
   "dependencies": {
     "follow-redirects": "^1.15.2",
-    "iconv-lite": "^0.6.3",
+    "iconv-lite": "^0.7.0",
     "mariadb": "^3",
     "moment": "^2.29.1",
     "oracledb": "^6.6.0"

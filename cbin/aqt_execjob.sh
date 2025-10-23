@@ -4,7 +4,7 @@
 [ -z $1 ]  && echo "Need to Job-id" ;
 IFS="@" read pkey tcode tnum intm repnum dbskip exectype etc limits <<< \
  `$AQTHOME/bin/aqtconn "select concat(pkey,'@', tcode,'@', tnum,'@',reqnum,'@',repnum,\
- '@',dbskip,'@', exectype,'@',ifnull(etc,' ')),'@',limits \
+ '@',dbskip,'@', exectype,'@',ifnull(etc,' '),'@',trim(limits)) \
                  from texecjob WHERE pkey = $1  and jobkind=9 and resultstat=1 " `
 if [ -z $pkey ]; then exit ; fi
 echo "$pkey $tcode $tnum $intm $dbskip $exectype $etc $limits"
@@ -37,7 +37,6 @@ if [ ${repnum} -gt 1 ]; then
 	COND="-r ${repnum} $COND" ;
 fi
 
-limits=${limits##* }
 echo "limits=[$limits]"
 if [[ ${limits} > " " ]]; then
 	COND="-u ${limits} $COND" ;
@@ -49,7 +48,7 @@ MKEY=$$
 
 LOGF="${AQTLOG}/"`date +%Y%m%d`"_${MKEY}.mlog"
 read tcnt <<<`$AQTHOME/bin/aqtconn "select count(1) from ttcppacket where tcode = '$tcode' $COND2" ` ;
-$AQTHOME/bin/aqtconn "INSERT INTO texecing (pkey,tcnt) values ($pkey,$tcnt) on duplicate key update set tcnt=$tcnt,ccnt=0,ecnt=0 ;   commit; " ;
+$AQTHOME/bin/aqtconn "INSERT INTO texecing (pkey,tcnt) values ($pkey,$tcnt) on duplicate key update tcnt=$tcnt,ccnt=0,ecnt=0 ;   commit; " ;
 echo "./aqt_sendS -t $tcode $COND -i $intm -p $tnum -x$1 >>$LOGF 2>&1" | sh -v 
 $AQTHOME/bin/aqtconn "update tmaster set tdate = curdate() where code = '$tcode' ;   commit; " ;
 
