@@ -24,22 +24,6 @@ AQT MQ SEND
 
 #include "aqt2.h"
 
-#define MAXLN2M 1e6
-
-int LOGprint(FILE *, char ltype, const char *func, int, const char *, ...);
-
-#define LOGERROR(...)                                         \
-  do                                                          \
-  {                                                           \
-    LOGprint(stderr, 'E', __func__, __LINE__, ##__VA_ARGS__); \
-  } while (0)
-
-#define LOGINFO(...)                                          \
-  do                                                          \
-  {                                                           \
-    LOGprint(stdout, 'I', __func__, __LINE__, ##__VA_ARGS__); \
-  } while (0)
-
 static struct sigaction act;
 
 static int _iDB = 1;
@@ -71,6 +55,8 @@ static int connectDB();
 static void closeDB();
 static int _Init(int, char **);
 static int get_target(char *);
+static void update_ccnt(unsigned long cnt);
+static msgqnum_t get_qnum();
 
 void Usage(void)
 {
@@ -120,7 +106,6 @@ static void fork_proc(int c)
   {
     if (fork() == 0)
     {
-      closeDB();
       execl(cexec, cexec, carr1, carr2, NULL);
     }
   }
@@ -206,34 +191,6 @@ int _Init(int argc, char *argv[])
   return (0);
 }
 
-int LOGprint(FILE *fp_log, char ltype, const char *func, int line_no, const char *fmt, ...)
-{
-  va_list ap;
-  int sz = 0;
-  struct timespec tv;
-  struct tm tm1;
-  char date_info[256];
-  char src_info[256];
-  char prt_info[1024];
-
-  clock_gettime(CLOCK_REALTIME, &tv);
-  localtime_r(&tv.tv_sec, &tm1);
-
-  va_start(ap, fmt);
-
-  snprintf(date_info, sizeof(date_info) - 1, "[%c] %04d%02d%02d:%02d%02d%02d%06ld",
-           ltype, 1900 + tm1.tm_year, tm1.tm_mon + 1, tm1.tm_mday,
-           tm1.tm_hour, tm1.tm_min, tm1.tm_sec, tv.tv_nsec / 1000);
-
-  snprintf(src_info, sizeof(src_info) - 1, "%s (%d)", func, line_no);
-  vsprintf(prt_info, fmt, ap);
-  sz += fprintf(fp_log, "%s:%-25.25s: %s\n", date_info, src_info, prt_info);
-  va_end(ap);
-  fflush(fp_log);
-
-  return sz;
-}
-
 int connectDB()
 {
   conn = mysql_init(NULL);
@@ -242,6 +199,8 @@ int connectDB()
     LOGERROR("DB init error");
     return (-1);
   }
+  my_bool reconnect= 1; /* enable reconnect */
+  mysql_optionsv(conn, MYSQL_OPT_RECONNECT, (void *)&reconnect);
 
   if ((mysql_real_connect(conn, DBHOST, DBUSER, DBPASS, DBNAME, DBPORT, DBSOCKET, 0)) == NULL)
   {
@@ -307,7 +266,7 @@ int main(int argc, char *argv[])
 {
   char c_sttime[21];
   char c_ettime[21];
-
+  time_t start, endt ;
   MSGREC msg;
 
   if (connectDB())
@@ -336,11 +295,12 @@ int main(int argc, char *argv[])
   };
   snprintf(query, 2000, "SELECT %s, DATE_FORMAT(ifnull(t.o_stime,now()) ,'%%H%%i%%s'), UNIX_TIMESTAMP(o_stime) "
                         " FROM ttcppacket t USE INDEX(tcode) join tservice s on (t.uri = s.svcid and s.appid = t.appid) "
-                        " WHERE t.tcode = '%s'  %s %s ORDER BY %s %s ",
+                        " WHERE t.tcode = '%s'  %s %s %s %s ",
            (_mtype == 3 ? "t.cmpid" : "t.pkey"),
-           _test_code, cond_svcid, cond_etc, (_test_code[0] == 'Z' ? "rand()" : "t.o_stime"), cond_limit);
+           _test_code, cond_svcid, cond_etc, (_test_code[0] == 'Z' ? "ORDER BY rand()" : ""), cond_limit);
   LOGINFO("%s", query);
-
+  
+  start = time(NULL);
   if (mysql_real_query(conn, query, strlen(query)))
   {
     LOGERROR("query error : %s", mysql_error(conn));
@@ -357,6 +317,13 @@ int main(int argc, char *argv[])
     return (1);
   }
 
+  endt = time(NULL);
+  unsigned long num_rows = mysql_num_rows(result) ;
+  LOGINFO("** select elapsed(%.3lf) Number of Rows(%ld) Start process**",difftime(endt,start), num_rows) ;
+  sprintf(query,"UPDATE texecing SET tcnt=%ld WHERE pkey=%ld", num_rows, execkey) ;
+  mysql_query(conn,query) ;
+  mysql_commit(conn) ;
+
   MYSQL_ROW row;
   double sv_time = (double)time(NULL);
   double cc_time = 0.0;
@@ -372,8 +339,8 @@ REPEAT:
     if (_iTimeChk && _iTotCnt && sv_time < cc_time)
     {
       lwt = (long)((cc_time - sv_time) * 1e6);
-      if (lwt > (60 * 1e6))
-        lwt = (60 * 1e6);
+      if ( _interval > 500 && lwt > (_interval * 1000))
+        lwt = (_interval * 1000);
       usleep(lwt);
     }
     sv_time = cc_time;
@@ -419,22 +386,40 @@ REPEAT:
 
 void print_status()
 {
-  LOGINFO("**[%s] Read Count[%d]", _test_code, _iTotCnt);
+  msgqnum_t qnum;
+  qnum = get_qnum() ;
+  update_ccnt( _iTotCnt - qnum );
+
+  if ( _iTotCnt % 1000 == 0)
+    LOGINFO("** Read [%d], real[%ld]", _iTotCnt, _iTotCnt - qnum);
+}
+
+static void update_ccnt(unsigned long cnt) {
+  if (execkey) {
+    char query[1024];
+    sprintf(query,"UPDATE texecing SET ccnt=%ld WHERE pkey=%ld", cnt, execkey) ;
+    mysql_query(conn,query);
+    mysql_commit(conn) ;
+  }
+}
+
+static msgqnum_t get_qnum() {
+  struct msqid_ds msgstat ;
+  if (-1 == msgctl(msgid,IPC_STAT, &msgstat)) return 0 ;
+  return msgstat.msg_qnum ;
 }
 
 void Closed(int x)
 {
+  int ret ;
   if (msgid >= 0)
   {
-    struct msqid_ds msqstat;
+    msgqnum_t qnum ;
     do
     {
-      if (-1 == msgctl(msgid, IPC_STAT, &msqstat))
-      {
-        LOGINFO("msgctl IPC_STAT FAILED");
-        break;
-      }
-      if (msqstat.msg_qnum == 0 || x == 1)
+      qnum = get_qnum();
+      update_ccnt(_iTotCnt - qnum);
+      if (qnum == 0 || x == 1)
         break;
       usleep(500);
     } while (1);
@@ -444,12 +429,16 @@ void Closed(int x)
   {
     char query[2048] ;
     LOGINFO("** UPDATE texecjob [%ld], Count[%d] **", execkey, _iTotCnt);
-    sprintf(query, "UPDATE texecjob SET msg=concat('count:',format(%d,0)), resultstat=2, endDt=NOW() WHERE pkey=%ld", _iTotCnt, execkey);
+    sprintf(query, "UPDATE texecjob SET msg=concat('Count: ',format(%d,0)), resultstat=2, endDt=NOW() WHERE pkey=%ld", _iTotCnt, execkey);
 
     if (mysql_real_query(conn, query, strlen(query)))
     {
       LOGERROR("update texecjob error: %s ", mysql_error(conn));
     }
+    mysql_commit(conn);
+    mysql_options(conn,MYSQL_OPT_NONBLOCK,0);
+    sprintf(query, "call sp_summary('%s')", _test_code);
+    mysql_query_start(&ret, conn, query) ;
   }
 
   closeDB();

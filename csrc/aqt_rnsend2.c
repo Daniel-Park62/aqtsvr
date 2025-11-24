@@ -25,20 +25,7 @@ AQT TMAX TCP RCV & SEND
 
 #include "aqt2.h"
 
-#define MAXLN2M 1_000_000
-
 int fcntl(int __fd, int __cmd, ...);
-static int LOGprint(char ltype, const char *func, int line_no, const char *fmt, ...);
-#define LOGERROR(...)                                 \
-  do                                                  \
-  {                                                   \
-    LOGprint('E', __func__, __LINE__, ##__VA_ARGS__); \
-  } while (0)
-#define LOGINFO(...)                                  \
-  do                                                  \
-  {                                                   \
-    LOGprint('I', __func__, __LINE__, ##__VA_ARGS__); \
-  } while (0)
 
 #define PRINTF(fmt, ...)                                             \
   do                                                                 \
@@ -112,7 +99,6 @@ static SR_ARR sr_arr, sr_arr2;
 static void Usage(void);
 static void Closed(void);
 static void _Signal_Handler(int sig);
-static struct timespec *getStrdate(char *, const int);
 static unsigned long atoi00(char *, int len);
 static int connectDB();
 static int _Init(int, char **);
@@ -120,7 +106,7 @@ static int get_target(char *, char *);
 static int update_db(SR_ARR *, char *, int);
 static int init_context(char *conn_label);
 
-static void *svc_call(void *);
+static void *svc_call();
 static void tpcall_proc(void);
 static void th_free();
 
@@ -225,62 +211,6 @@ void _Signal_Handler(int sig)
   else
     PRINTF("SIGNAL(%d) -> [%s] Fail:(%d) DB:(%d)", sig, _test_code, _iFailCnt, _iUpdCnt);
   exit(1);
-}
-
-struct timespec *getStrdate(char *str, const int len)
-{
-  static struct timespec tv;
-  struct tm tm1;
-  char cTmp[21] = {
-      0,
-  };
-  clock_gettime(CLOCK_REALTIME, &tv);
-  localtime_r(&tv.tv_sec, &tm1);
-  snprintf(cTmp, 21, "%04d%02d%02d%02d%02d%02d%06ld",
-           1900 + tm1.tm_year, tm1.tm_mon + 1, tm1.tm_mday,
-           tm1.tm_hour, tm1.tm_min, tm1.tm_sec, tv.tv_nsec / 1000);
-  memcpy(str, cTmp, len > 21 ? 21 : len);
-  return (&tv);
-}
-
-static int LOGprint(char ltype, const char *func, int line_no, const char *fmt, ...)
-{
-  if (fpid != getpid())
-    return 0;
-  va_list ap;
-  int sz = 0;
-  struct timespec tv;
-  struct tm tm1;
-  char date_info[256];
-  char src_info[256];
-  char prt_info[1024];
-  char fname[128];
-
-  if (fp_log == NULL)
-  {
-    snprintf(fname, sizeof(fname) - 1, "%s/%s/%s_REAL_%d.wlog", aqthome,LOG_PATH, _test_date, fpid);
-    if ((fp_log = fopen(fname, "ab")) == NULL)
-      return (-1);
-    // printf("** log File : %s\n",fname) ;
-    fflush(stdin);
-  }
-
-  clock_gettime(CLOCK_REALTIME, &tv);
-  localtime_r(&tv.tv_sec, &tm1);
-
-  va_start(ap, fmt);
-
-  snprintf(date_info, sizeof(date_info) - 1, "[%c] %04d%02d%02d:%02d%02d%02d%06ld:%d",
-           ltype, 1900 + tm1.tm_year, tm1.tm_mon + 1, tm1.tm_mday,
-           tm1.tm_hour, tm1.tm_min, tm1.tm_sec, tv.tv_nsec / 1000, fpid);
-
-  snprintf(src_info, sizeof(src_info) - 1, "%s (%d)", func, line_no);
-  vsprintf(prt_info, fmt, ap);
-  sz += fprintf(fp_log, "%s:%-25.25s: %s\n", date_info, src_info, prt_info);
-  va_end(ap);
-  fflush(fp_log);
-
-  return sz;
 }
 
 int connectDB()
@@ -637,7 +567,7 @@ inline void tpcall_proc(void)
   tpend();
 }
 
-static void *svc_call(void *vr)
+static void *svc_call()
 {
   int tret, istat;
   struct timespec stv, etv;

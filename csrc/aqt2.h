@@ -9,6 +9,7 @@
 #define L_REPLY_NEEDED 1
 #define L_UUID 32
 #define L_TR_CODE 32
+#define L_TEST_CODE 50
 #define L_MSG_CODE 4
 #define L_TIME 8
 #define L_MAIN_MSG 80
@@ -19,7 +20,7 @@
 #define VNAME_SZ 128
 #define FNAME_SZ 256
 
-#define DBHOST "172.19.224.1"
+#define DBHOST "localhost"
 #define DBUSER "aqtdb"
 #define DBNAME "aqtdb2"
 #define DBPASS "Dawinit1!"
@@ -45,6 +46,22 @@ static key_t msgkey = 5972;
 			*((D) + i--) = 0;                   \
 		memcpy((D), (S), i + 1);              \
 	} while (0)
+
+#define MAXLN2M (1000 * 1000)
+
+#define LOGERROR(...)                                         \
+  do                                                          \
+  {                                                           \
+    LOGprint(stderr, 'E', __FILE__, __LINE__, ##__VA_ARGS__); \
+  } while (0)
+#define LOGINFO(...)                                          \
+  do                                                          \
+  {                                                           \
+    LOGprint(stdout, 'I', __FILE__, __LINE__, ##__VA_ARGS__); \
+  } while (0)
+
+struct timespec *getStrdate(char *, const int);
+int LOGprint(FILE *fp_log, char ltype, const char *func, int line_no, const char *fmt, ...) ;
 
 /*  field buffer 
 typedef struct {

@@ -1,6 +1,6 @@
 /*
 AQT mq recv & tpcall
-  °Çº° tpstart
+   tpstart
 */
 
 #include <stdio.h>
@@ -9,8 +9,14 @@ AQT mq recv & tpcall
 #include <string.h>
 #include <signal.h>
 #include <libgen.h>
-#include <usrinc/atmi.h>
-#include <usrinc/tmaxapi.h>
+
+#ifdef __TMAX__
+ #include <usrinc/atmi.h>
+ #include <usrinc/tmaxapi.h>
+#else
+ #include <atmi.h>
+#endif
+
 #include <error.h>
 #include <errno.h>
 #include <mysql.h>
@@ -26,19 +32,6 @@ AQT mq recv & tpcall
 
 #include "aqt2.h"
 
-#define MAXLN2M 1000000
-
-#define LOGERROR(...)                                         \
-  do                                                          \
-  {                                                           \
-    LOGprint(stderr, 'E', __FILE__, __LINE__, ##__VA_ARGS__); \
-  } while (0)
-#define LOGINFO(...)                                          \
-  do                                                          \
-  {                                                           \
-    LOGprint(stdout, 'I', __FILE__, __LINE__, ##__VA_ARGS__); \
-  } while (0)
-
 static struct sigaction act;
 
 static int msgid = -1;
@@ -52,13 +45,12 @@ static char *tux_sndbuf = NULL;
 static char *tux_rcvbuf = NULL;
 
 static char oltp_name[L_TR_CODE + 1];
-static char _test_code[VNAME_SZ];
+static char _test_code[L_TEST_CODE];
 static char sv_label[VNAME_SZ];
 static int _mtype = 2;
 
 static void Closed(void);
 static void _Signal_Handler(int sig);
-static struct timespec *getStrdate(char *, const int);
 static int connectDB();
 static void closeDB();
 static int _Init(int, char **);
@@ -66,34 +58,6 @@ static int update_db(unsigned long, char *, long rlen, char *stime, char *rtime,
 static int update_db_fail(unsigned long, char *, long, char *stime, char *rtime, char *, double gap);
 
 static int init_context(char *conn_label);
-
-static int LOGprint(FILE *fp_log, char ltype, const char *func, int line_no, const char *fmt, ...)
-{
-  va_list ap;
-  int sz = 0;
-  struct timespec tv;
-  struct tm tm1;
-  char date_info[256];
-  char src_info[256];
-  char prt_info[1024];
-
-  clock_gettime(CLOCK_REALTIME, &tv);
-  localtime_r(&tv.tv_sec, &tm1);
-
-  va_start(ap, fmt);
-
-  snprintf(date_info, sizeof(date_info) - 1, "[%c] %04d%02d%02d:%02d%02d%02d%06ld",
-           ltype, 1900 + tm1.tm_year, tm1.tm_mon + 1, tm1.tm_mday,
-           tm1.tm_hour, tm1.tm_min, tm1.tm_sec, tv.tv_nsec / 1000);
-
-  snprintf(src_info, sizeof(src_info) - 1, "%s (%d)", func, line_no);
-  vsprintf(prt_info, fmt, ap);
-  sz += fprintf(fp_log, "%s:%-25.25s: %s\n", date_info, src_info, prt_info);
-  va_end(ap);
-  fflush(fp_log);
-
-  return sz;
-}
 
 void _Signal_Handler(int sig)
 {
@@ -133,22 +97,6 @@ int _Init(int argc, char *argv[])
   sigaction(SIGTERM, &act, 0);
 
   return (0);
-}
-
-struct timespec *getStrdate(char *str, const int len)
-{
-  static struct timespec tv;
-  struct tm tm1;
-  char cTmp[21] = {
-      0,
-  };
-  clock_gettime(CLOCK_REALTIME, &tv);
-  localtime_r(&tv.tv_sec, &tm1);
-  snprintf(cTmp, 21, "%04d%02d%02d%02d%02d%02d%06ld",
-           1900 + tm1.tm_year, tm1.tm_mon + 1, tm1.tm_mday,
-           tm1.tm_hour, tm1.tm_min, tm1.tm_sec, tv.tv_nsec / 1000);
-  memcpy(str, cTmp, len > 21 ? 21 : len);
-  return (&tv);
 }
 
 int connectDB()
@@ -215,6 +163,19 @@ int main(int argc, char *argv[])
   };
   MYSQL_RES *result;
   MYSQL_ROW row;
+  if ((tux_sndbuf = (char *)tpalloc("CARRAY", NULL, MAXLN2M)) == NULL)
+  {
+    LOGERROR("sendbuf alloc failed[%s]", tpstrerror(tperrno));
+    exit(1);
+  }
+
+  if ((tux_rcvbuf = (char *)tpalloc("CARRAY", NULL, MAXLN2M)) == NULL)
+  {
+    LOGERROR("rcvbuf alloc failed[%s]", tpstrerror(tperrno));
+    if (tux_sndbuf)    tpfree((char *)tux_sndbuf);
+    exit(1);
+  }
+
 
   while (1)
   {
@@ -230,7 +191,7 @@ int main(int argc, char *argv[])
     }
     _iTotCnt++;
 
-    sprintf(query, "SELECT  thost, uri, slen, sdata "
+    sprintf(query, "SELECT  thost, uri, slen, sdata, tcode "
                    " FROM ttcppacket join tmaster on (code = tcode) "
                    " WHERE pkey = %ld ",
             msg.data.pkey);
@@ -253,11 +214,13 @@ int main(int argc, char *argv[])
 
     if (!row )   continue;
 
-/*     LOGINFO("%d : (%ld)(%s)", getpid(), msg.data.pkey, row[0]) ;
-    continue ;
- */
+    long slen = atol(row[2]);
+
+    memset(oltp_name, 0, sizeof(oltp_name));
+    strncpy(oltp_name, row[1], sizeof(oltp_name));
+    LOGINFO("## env Label(%s) tid(%s) svcid(%s)", row[0], row[4], oltp_name) ;
+
     double dgap = 1.1;
-    long slen = 0;
     
     memset(c_sttime, 0, sizeof(c_sttime));
     memset(c_ettime, 0, sizeof(c_ettime));
@@ -268,10 +231,6 @@ int main(int argc, char *argv[])
       continue ;
     }
 
-    slen = atoi(row[2]);
-
-    memset(oltp_name, 0, sizeof(oltp_name));
-    strncpy(oltp_name, row[1], sizeof(oltp_name));
 
     rlen = 0;
 
@@ -286,8 +245,14 @@ int main(int argc, char *argv[])
      */
 
     strcpy(tux_sndbuf, row[3]);
-    slen = strlen((char *)tux_sndbuf);
-    tret = tpcall(oltp_name, (char *)tux_sndbuf, slen, (char **)&tux_rcvbuf, (long *)&rlen, TPNOFLAGS);
+    slen = strnlen((char *)tux_sndbuf,MAXLN2M);
+
+        // meritz
+    memmove(tux_sndbuf+104, c_sttime+8,9);
+    if (tux_sndbuf[12] != '0')
+      tret = tpcall(oltp_name, (char *)tux_sndbuf, slen, (char **)&tux_rcvbuf, (long *)&rlen, TPNOFLAGS);
+    else
+      tret = tpacall(oltp_name, (char *)tux_sndbuf, slen,  TPNOFLAGS);
 
     etv = *getStrdate(c_ettime, 20);
     dgap = (double)(etv.tv_nsec - stv.tv_nsec) / 1e9 + (etv.tv_sec - stv.tv_sec);
@@ -319,30 +284,25 @@ int init_context(char *conn_label)
 {
 
   if (!strcmp(sv_label, conn_label) )  return 0 ;
-  Closed() ;
   memset(sv_label,0,1);
-
+#ifdef __TMAX__
+  tpend() ;
   if (tmaxreadenv(TP_ENV_FILE, conn_label) < 0)
+#else
+  tpterm() ;
+  if (tuxreadenv(TP_ENV_FILE, conn_label) < 0)
+#endif
   {
     LOGERROR("readenv Error : (%s:%s) (%d)-(%s)", TP_ENV_FILE, conn_label, tperrno, tpstrerror(tperrno));
     return (1);
   }
-
+#ifdef __TMAX__
   if (tpstart(NULL) < 0)
+#else
+  if (tpinit((TPINIT *)NULL) < 0)
+#endif
   {
     LOGERROR("tp start Error : (%s) (%d)-(%s)", conn_label, tperrno, tpstrerror(tperrno));
-    return (1);
-  }
-
-  if ((tux_sndbuf = (char *)tpalloc("CARRAY", NULL, MAXLN2M)) == NULL)
-  {
-    LOGERROR("sendbuf alloc failed[%s]", tpstrerror(tperrno));
-    return (1);
-  }
-
-  if ((tux_rcvbuf = (char *)tpalloc("CARRAY", NULL, MAXLN2M)) == NULL)
-  {
-    LOGERROR("rcvbuf alloc failed[%s]", tpstrerror(tperrno));
     return (1);
   }
 
@@ -354,12 +314,14 @@ int init_context(char *conn_label)
 void Closed()
 {
   // if ( msgid > 0 ) msgctl(msgid, IPC_RMID,NULL) ;
-  if (tux_rcvbuf)
-    tpfree((char *)tux_rcvbuf);
-  if (tux_sndbuf)
-    tpfree((char *)tux_sndbuf);
-
+  if (tux_rcvbuf)    tpfree((char *)tux_rcvbuf);
+  if (tux_sndbuf)    tpfree((char *)tux_sndbuf);
+#ifdef __TMAX__
   tpend();
+#else
+  tpterm();
+#endif
+
 }
 
 static int update_db(unsigned long pkey, char *rcvdata, long rlen, char *stime, char *rtime, double gap)
