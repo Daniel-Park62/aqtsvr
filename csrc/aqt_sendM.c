@@ -188,7 +188,7 @@ int main(int argc, char *argv[])
   {
     if (msgrcv(msgid, &msg, sizeof(msg.data), _mtype, 0) == -1)
     {
-      LOGINFO("msgrcv failed");
+//      LOGINFO("msgrcv failed");
       break;
     }
     _iTotCnt++;
@@ -280,7 +280,7 @@ int main(int argc, char *argv[])
   Closed();
   exit(0);
 }
-
+#define MAX_RETRY 3
 int init_context(char *conn_label)
 {
 #ifdef __TMAX__
@@ -294,18 +294,19 @@ int init_context(char *conn_label)
     LOGERROR("readenv Error : (%s:%s) (%d)-(%s)", TP_ENV_FILE, conn_label, tperrno, tpstrerror(tperrno));
     return (1);
   }
-
+  int retry_n = 0;
+  while(retry_n < MAX_RETRY) {
 #ifdef __TMAX__
-  if (tpstart(NULL) < 0)
+    if (tpstart(NULL) >= 0) return(0) ;
 #else
-  if (tpinit((TPINIT *)NULL) < 0)
+    if (tpinit((TPINIT *)NULL) >= 0) return(0) ;
 #endif
-  {
-    LOGERROR("tp start Error : (%s) (%d)-(%s)", conn_label, tperrno, tpstrerror(tperrno));
-    return (1);
+    retry_n++ ;
+    if (retry_n < MAX_RETRY) sleep(1) ;
   }
 
-  return 0;
+  LOGERROR("tp start Error : (%s) (%d)-(%s)", conn_label, tperrno, tpstrerror(tperrno));
+  return (1);
 }
 
 void Closed()

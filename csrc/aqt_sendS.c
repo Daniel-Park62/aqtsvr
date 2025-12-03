@@ -31,11 +31,13 @@ static int _lvl = 1;
 static int _iTimeChk = 0;
 static int _mtype = 2;
 static MYSQL *conn = NULL;
+static MYSQL *connR = NULL;
 static int msgid = -1;
 
-static unsigned int _interval = 0;
+static double _interval = 0;
 
 static unsigned int _iTotCnt = 0;
+static unsigned int _iSelCnt = 0;
 static unsigned int _repnum = 0;
 static unsigned int _procnum = 3;
 static unsigned long execkey = 0;
@@ -51,8 +53,8 @@ static void Usage(void);
 static void print_status(void);
 static void Closed(int);
 static void _Signal_Handler(int sig);
-static int connectDB();
-static void closeDB();
+static int connectDB(MYSQL **);
+static void closeDB(MYSQL **);
 static int _Init(int, char **);
 static int get_target(char *);
 static void update_ccnt(unsigned long cnt);
@@ -121,7 +123,7 @@ int _Init(int argc, char *argv[])
   memset(cond_limit, 0, sizeof(cond_limit));
   memset(cond_etc, 0, sizeof(cond_etc));
 
-  while ((opt = getopt(argc, argv, "dhki:e:t:o:u:r:p:x:")) != -1)
+  while ((opt = getopt(argc, argv, "dhkc:i:e:t:o:u:r:p:x:")) != -1)
   {
     switch (opt)
     {
@@ -135,8 +137,11 @@ int _Init(int argc, char *argv[])
     case 'u':
       snprintf(cond_limit, VNAME_SZ, "LIMIT %s", optarg);
       break;
+    case 'c':
+      _iSelCnt = atoi(optarg);
+      break;
     case 'i':
-      _interval = atoi(optarg);
+      _interval = strtod(optarg,NULL);
       break;
     case 't':
       strcpy(_test_code, optarg);
@@ -191,33 +196,33 @@ int _Init(int argc, char *argv[])
   return (0);
 }
 
-int connectDB()
+int connectDB(MYSQL **conn)
 {
-  conn = mysql_init(NULL);
-  if (conn == NULL)
+  *conn = mysql_init(NULL);
+  if (*conn == NULL)
   {
     LOGERROR("DB init error");
     return (-1);
   }
   my_bool reconnect= 1; /* enable reconnect */
-  mysql_optionsv(conn, MYSQL_OPT_RECONNECT, (void *)&reconnect);
+  mysql_optionsv(*conn, MYSQL_OPT_RECONNECT, (void *)&reconnect);
 
-  if ((mysql_real_connect(conn, DBHOST, DBUSER, DBPASS, DBNAME, DBPORT, DBSOCKET, 0)) == NULL)
+  if ((mysql_real_connect(*conn, DBHOST, DBUSER, DBPASS, DBNAME, DBPORT, DBSOCKET, 0)) == NULL)
   {
-    LOGERROR("DB connect error : %s", mysql_error(conn));
+    LOGERROR("DB connect error : %s", mysql_error(*conn));
     return (-1);
   }
 
-  mysql_autocommit(conn, 1);
+  mysql_autocommit(*conn, 1);
 
   return (0);
 }
 
-void closeDB()
+void closeDB(MYSQL **conn)
 {
-  if (conn)
-    mysql_close(conn);
-  conn = NULL;
+  if (*conn)
+    mysql_close(*conn);
+  *conn = NULL;
 }
 
 int get_target(char *test_code)
@@ -269,11 +274,9 @@ int main(int argc, char *argv[])
   time_t start, endt ;
   MSGREC msg;
 
-  if (connectDB())
-  {
-    return (1);
-  }
-
+  if (connectDB(&conn))   return (1);
+  if (connectDB(&connR))   return (1);
+  
   if (_Init(argc, argv) != 0)
   {
     Usage();
@@ -288,12 +291,12 @@ int main(int argc, char *argv[])
     return (-1);
   }
 
-  fork_proc(_procnum);
+  char query[2048] = { 0, };
+  sprintf(query, "UPDATE texecjob SET pidv=%ld WHERE pkey=%ld", (long)msgkey, execkey) ;
+  mysql_query(conn,query);
+  mysql_commit(conn);
 
-  char query[2048] = {
-      0,
-  };
-  snprintf(query, 2000, "SELECT %s, DATE_FORMAT(ifnull(t.o_stime,now()) ,'%%H%%i%%s'), UNIX_TIMESTAMP(o_stime) "
+  snprintf(query, 2000, "SELECT %s,  UNIX_TIMESTAMP(o_stime) "
                         " FROM ttcppacket t USE INDEX(tcode) join tservice s on (t.uri = s.svcid and s.appid = t.appid) "
                         " WHERE t.tcode = '%s'  %s %s %s %s ",
            (_mtype == 3 ? "t.cmpid" : "t.pkey"),
@@ -301,24 +304,31 @@ int main(int argc, char *argv[])
   LOGINFO("%s", query);
   
   start = time(NULL);
-  if (mysql_real_query(conn, query, strlen(query)))
+  if (mysql_real_query(connR, query, strlen(query)))
   {
-    LOGERROR("query error : %s", mysql_error(conn));
-
+    LOGERROR("query error : %s", mysql_error(connR));
     Closed(1);
     return (1);
   }
-  MYSQL_RES *result = mysql_store_result(conn);
+  MYSQL_RES *result = mysql_store_result(connR);
+  unsigned long num_rows ;
+  if (_iSelCnt) {
+    num_rows = _iSelCnt;
+    result = mysql_use_result(connR);
+  } else {
+    result = mysql_store_result(connR);
+    num_rows = mysql_num_rows(result) ;
+  }
   if (result == NULL)
   {
-    LOGERROR("result error : %s", mysql_error(conn));
-    ;
+    LOGERROR("result error : %s", mysql_error(connR));
     Closed(1);
     return (1);
   }
 
   endt = time(NULL);
-  unsigned long num_rows = mysql_num_rows(result) ;
+  fork_proc(_procnum);
+
   LOGINFO("** select elapsed(%.3lf) Number of Rows(%ld) Start process**",difftime(endt,start), num_rows) ;
   sprintf(query,"UPDATE texecing SET tcnt=%ld WHERE pkey=%ld", num_rows, execkey) ;
   mysql_query(conn,query) ;
@@ -335,11 +345,11 @@ REPEAT:
     memset(c_sttime, 0, sizeof(c_sttime));
     memset(c_ettime, 0, sizeof(c_ettime));
 
-    cc_time = strtod(row[2], NULL);
+    cc_time = strtod(row[1], NULL);
     if (_iTimeChk && _iTotCnt && sv_time < cc_time)
     {
       lwt = (long)((cc_time - sv_time) * 1e6);
-      if ( _interval > 500 && lwt > (_interval * 1000))
+      if ( _interval > 100 && lwt > (_interval * 1000))
         lwt = (_interval * 1000);
       usleep(lwt);
     }
@@ -356,19 +366,13 @@ REPEAT:
       break;
     }
 
-    if (_iTotCnt % 100 == 0)
-      print_status();
-    if (execkey > 0)
-    {
-      char query[2048] ;
-      sprintf(query, "UPDATE texecing SET ccnt=%d WHERE pkey=%ld", _iTotCnt, execkey);
-      mysql_real_query(conn, query, strlen(query)) ;
-    }
+    if (_iTotCnt % 100 == 0) print_status();
+
     if (_interval && _iTimeChk == 0)
       usleep(_interval * 1000);
 
   } // while loop end
-  if (_repnum > 1)
+  if (_repnum > 1  && _iSelCnt == 0 )
   {
     _repnum--;
     LOGINFO("Repeat %d", _repnum);
@@ -429,7 +433,7 @@ void Closed(int x)
   {
     char query[2048] ;
     LOGINFO("** UPDATE texecjob [%ld], Count[%d] **", execkey, _iTotCnt);
-    sprintf(query, "UPDATE texecjob SET msg=concat('Count: ',format(%d,0)), resultstat=2, endDt=NOW() WHERE pkey=%ld", _iTotCnt, execkey);
+    sprintf(query, "UPDATE texecjob SET pidv=0, msg=concat('Count: ',format(%d,0)), resultstat=2, endDt=NOW() WHERE pkey=%ld", _iTotCnt, execkey);
 
     if (mysql_real_query(conn, query, strlen(query)))
     {
@@ -441,7 +445,8 @@ void Closed(int x)
     mysql_query_start(&ret, conn, query) ;
   }
 
-  closeDB();
+  closeDB(&conn);
+  closeDB(&connR);
   LOGINFO("*** END PROG %s ***", __FILE__);
 
 }

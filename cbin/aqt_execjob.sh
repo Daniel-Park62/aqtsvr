@@ -19,6 +19,7 @@ read lvl target <<<`$AQTHOME/bin/aqtconn "select lvl,thost from tmaster where co
 
 COND="" ;
 COND2="" ;
+SELCNT="" ;
 
 if [ ${#etc} -gt 5 ]; then
 	COND="-e \"$etc\"" ;
@@ -39,6 +40,7 @@ fi
 
 echo "limits=[$limits]"
 if [[ ${limits} > " " ]]; then
+  SELCNT=`echo ${limits}|cut -d, -f2|awk '{printf("-c %s",$1)}'` ;
 	COND="-u ${limits} $COND" ;
 	COND2="$COND2 LIMIT $limits" ;
 	echo $COND;
@@ -47,9 +49,9 @@ fi
 MKEY=$$
 
 LOGF="${AQTLOG}/"`date +%Y%m%d`"_${MKEY}.mlog"
-read tcnt <<<`$AQTHOME/bin/aqtconn "select count(1) from ttcppacket where tcode = '$tcode' $COND2" ` ;
+#  read tcnt <<<`$AQTHOME/bin/aqtconn "select count(1) from ttcppacket where tcode = '$tcode' $COND2" ` ;
 $AQTHOME/bin/aqtconn "INSERT INTO texecing (pkey,tcnt) values ($pkey,$tcnt) on duplicate key update tcnt=$tcnt,ccnt=0,ecnt=0 ;   commit; " ;
-echo "./aqt_sendS -t $tcode $COND -i $intm -p $tnum -x$1 >>$LOGF 2>&1" | sh -v 
+echo "./aqt_sendS -t $tcode $COND ${SELCNT} -i $intm -p $tnum -x$1 >>$LOGF 2>&1" | sh -v 
 $AQTHOME/bin/aqtconn "update tmaster set tdate = curdate() where code = '$tcode' ;   commit; " ;
 
 echo "** $tcode tpcall End. **"
