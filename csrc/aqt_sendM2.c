@@ -10,8 +10,12 @@ multi context
 #include <string.h>
 #include <signal.h>
 #include <libgen.h>
-#include <usrinc/atmi.h>
-#include <usrinc/tmaxapi.h>
+#ifdef __TMAX__
+ #include <usrinc/atmi.h>
+ #include <usrinc/tmaxapi.h>
+#else
+ #include <atmi.h>
+#endif
 #include <error.h>
 #include <errno.h>
 #include <mysql.h>
@@ -26,18 +30,6 @@ multi context
 #include <sys/msg.h>
 
 #include "aqt2.h"
-
-#define MAXLN2M (1024 * 1024)
-
-#define LOGERROR(...) \
-  do {\
-    LOGprint(stderr,'E', __func__, __LINE__, ## __VA_ARGS__ ); \
-  } while(0)
-#define LOGINFO(...) \
-	do { \
-		LOGprint(stdout,'I' , __func__ , __LINE__ , ## __VA_ARGS__ ) ; \
-  } while(0)
-
 
 static TPSTART_T *_tpinfo ;
 
@@ -67,7 +59,6 @@ static int _mtype = 3 ;
 
 static void Closed(void) ;
 static void _Signal_Handler(int sig) ;
-static struct timespec *getStrdate(char *, const int) ;
 static int connectDB(void) ;
 static void closeDB(void) ;
 static int _Init(int, char **) ;
@@ -76,34 +67,6 @@ static int update_db_fail( unsigned long, char*,long,char*,char*,char*, double) 
 
 static int init_context(char *conn_label ); 
 static void *svc_call(void*) ;
-
-int LOGprint(FILE *fp_log, char ltype, const char *func, int line_no, const char *fmt, ...)
-{
-	va_list ap;
-	int sz = 0;
-	struct timespec tv;
-	struct tm tm1;
-	char date_info[256];
-	char src_info[256];
-	char prt_info[1024];
-	
-	clock_gettime(CLOCK_REALTIME, &tv);
-	localtime_r(&tv.tv_sec, &tm1);
-	
-	va_start(ap, fmt);
-	
-	snprintf(date_info,sizeof(date_info)-1,"[%c] %04d%02d%02d:%02d%02d%02d%06ld"
-			 ,ltype, 1900+tm1.tm_year,tm1.tm_mon+1,tm1.tm_mday, tm1.tm_hour
-			 ,tm1.tm_min,tm1.tm_sec, tv.tv_nsec/1000) ;
-			
-	snprintf(src_info,sizeof(src_info)-1,"%s (%d)",func,line_no);
-	vsprintf(prt_info,fmt,ap);
-	sz += fprintf(fp_log,"%s:%-25.25s: %s\n",date_info,src_info,prt_info);
-	va_end(ap);
-	fflush(fp_log);
-	
-	return sz;
-}	
 
 void _Signal_Handler(int sig)
 {
@@ -153,21 +116,6 @@ int _Init(int argc, char *argv[])
 
   return(0) ;
 }
-
-struct timespec *getStrdate(char *str, const int len)
-{
-  static struct timespec tv;
-  struct tm tm1;
-  char cTmp[21] = {0,};
-  clock_gettime(CLOCK_REALTIME, &tv);
-  localtime_r(&tv.tv_sec, &tm1);
-  snprintf(cTmp, 21, "%04d%02d%02d%02d%02d%02d%06ld",
-          1900+tm1.tm_year, tm1.tm_mon+1, tm1.tm_mday,
-          tm1.tm_hour, tm1.tm_min, tm1.tm_sec, tv.tv_nsec / 1000  );
-  memcpy(str,cTmp, len > 21 ? 21 : len) ;
-  return(&tv) ;
-}
-
 
 int connectDB()
 {
@@ -313,7 +261,7 @@ int main(int argc, char *argv[])
 		
 		snprintf(query,sizeof(query),"SELECT a.pkey, b.pkey, a.uri, a.slen, a.sdata "
 				" FROM ttcppacket a join ttcppacket b on (a.cmpid = b.cmpid ) "
-				" WHERE a.cmpid = %ld and a.tcode = '%s' and b.tcode = '%s' " , msg.data.pkey, _tcode1, _tcode2 ) ;
+				" WHERE a.pkey = %ld and a.tcode = '%s' and b.tcode = '%s' " , msg.data.pkey, _tcode1, _tcode2 ) ;
 
 		if (mysql_real_query(conn, query, strlen(query))){
 			LOGERROR("query error : %s", mysql_error(conn));

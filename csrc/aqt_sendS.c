@@ -297,10 +297,9 @@ int main(int argc, char *argv[])
   mysql_query(conn,query);
   mysql_commit(conn);
 
-  snprintf(query, 2000, "SELECT %s,  UNIX_TIMESTAMP(o_stime) "
-                        " FROM ttcppacket t USE INDEX(tcode) join tservice s on (t.uri = s.svcid and s.appid = t.appid) "
+  snprintf(query, 2000, "SELECT pkey,  UNIX_TIMESTAMP(o_stime) "
+                        " FROM ttcppacket t  "
                         " WHERE t.tcode = '%s'  %s %s %s %s ",
-           (_mtype == 3 ? "t.cmpid" : "t.pkey"),
            _test_code, cond_svcid, cond_etc, (_test_code[0] == 'Z' ? "ORDER BY rand()" : ""), cond_limit);
   LOGINFO("%s", query);
   

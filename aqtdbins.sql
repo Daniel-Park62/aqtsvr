@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS `tapplication` (
 
 INSERT INTO tapplication (appid, appnm, manager ) VALUES('AP01','기본','AQT') ;
 
-CREATE TABLE `texecjob` (
+CREATE TABLE IF NOT EXISTS `texecjob` (
 	`pkey` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'job id',
 	`ppkey` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '선행 id',
 	`jobkind` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '9' COMMENT '1.패킷파일import 2.패킷캡쳐  3.패킷복제 9.테스트수행',
@@ -106,7 +106,7 @@ COLLATE='utf8_general_ci'
 ENGINE=InnoDB
 ;
 
-CREATE TABLE `texecjson` (
+CREATE TABLE IF NOT EXISTS `texecjson` (
 	`pkey` INT(11) NOT NULL COMMENT 'texecjob id',
 	`jdata` LONGTEXT NULL DEFAULT NULL COLLATE 'utf8mb4_bin',
 	PRIMARY KEY (`pkey`) USING BTREE
@@ -292,7 +292,45 @@ CREATE TABLE IF NOT EXISTS `ttcppacket` (
 
 ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
 
-CREATE table tinputdata LIKE ttcppacket ;
+CREATE TABLE IF NOT EXISTS `tinputdata` (
+	`pkey` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+	`appid` VARCHAR(50) NOT NULL DEFAULT '' COLLATE 'utf8_general_ci',
+	`sq` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+	`o_stime` DATETIME(6) NOT NULL COMMENT 'org 송신시간',
+	`stime` DATETIME(6) NOT NULL COMMENT '송신시간',
+	`rtime` DATETIME(6) NOT NULL COMMENT '수신시간',
+	`svctime` DOUBLE(22,3) DEFAULT NULL AS (time_to_sec(timediff(`rtime`,`stime`))) virtual,
+	`elapsed` DOUBLE(22,3) NOT NULL DEFAULT time_to_sec(timediff(`rtime`,`stime`)) COMMENT '소요시간',
+	`srcip` VARCHAR(30) NULL DEFAULT NULL COMMENT '소스ip' COLLATE 'utf8_general_ci',
+	`srcport` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '소스port',
+	`o_dstip` VARCHAR(30) NULL DEFAULT NULL COMMENT '목적지ip' COLLATE 'utf8_general_ci',
+	`dstip` VARCHAR(30) NULL DEFAULT NULL COMMENT '목적지ip' COLLATE 'utf8_general_ci',
+	`o_dstport` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '목적지port',
+	`dstport` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '목적지port',
+	`proto` CHAR(1) NULL DEFAULT '0' COMMENT '0.tcp 1.http 2.https' COLLATE 'utf8_general_ci',
+	`method` VARCHAR(20) NULL DEFAULT NULL COMMENT 'method' COLLATE 'utf8_general_ci',
+	`uri` VARCHAR(512) NULL DEFAULT NULL COLLATE 'utf8_general_ci',
+	`seqno` INT(10) UNSIGNED NULL DEFAULT NULL,
+	`ackno` INT(10) UNSIGNED NULL DEFAULT NULL,
+	`rcode` INT(10) UNSIGNED NULL DEFAULT '0' COMMENT 'return code',
+	`sflag` CHAR(1) DEFAULT NULL AS (if(`rcode` > 399,'2',if(`rcode` > 199,'1','0'))) virtual COLLATE 'utf8_general_ci',
+	`rhead` VARCHAR(8192) NULL DEFAULT NULL COMMENT 'response header' COLLATE 'utf8_general_ci',
+	`errinfo` VARCHAR(200) NULL DEFAULT NULL COLLATE 'utf8_general_ci',
+	`slen` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '송신데이터길이',
+	`rlen` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '수신데이터길이',
+	`sdata` MEDIUMBLOB NULL DEFAULT NULL COMMENT '송신데이터',
+	`rdata` MEDIUMBLOB NULL DEFAULT NULL COMMENT '수신데이터',
+	`cdate` DATETIME(6) NULL DEFAULT current_timestamp(6) COMMENT '생성일시',
+	`col1` VARCHAR(100) DEFAULT NULL AS (cast('yyy' as char(10) charset utf8mb4)) virtual COLLATE 'utf8_general_ci',
+	`col2` VARCHAR(100) DEFAULT NULL AS (cast('ttt' as char(100) charset utf8mb4)) virtual COLLATE 'utf8_general_ci',
+	PRIMARY KEY (`pkey`) USING BTREE,
+	INDEX `appid_sq` (`appid`, `sq`) USING BTREE,
+	INDEX `appid_uri` (`appid`, `uri`) USING BTREE
+)
+COLLATE='utf8_general_ci'
+ENGINE=InnoDB
+ROW_FORMAT=COMPRESSED
+;
 
 DELIMITER //
 CREATE FUNCTION `uf_getapp`(`in_ip` VARCHAR(50),
