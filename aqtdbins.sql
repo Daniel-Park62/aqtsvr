@@ -70,9 +70,10 @@ CREATE TABLE IF NOT EXISTS `tapplication` (
 
 INSERT INTO tapplication (appid, appnm, manager ) VALUES('AP01','기본','AQT') ;
 
-CREATE TABLE IF NOT EXISTS  `texecjob` (
-	`pkey` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-	`jobkind` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '9' COMMENT '0.패킷캡쳐 1.패킷파일import 3.패킷복제 9.테스트수행',
+CREATE TABLE `texecjob` (
+	`pkey` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'job id',
+	`ppkey` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '선행 id',
+	`jobkind` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '9' COMMENT '1.패킷파일import 2.패킷캡쳐  3.패킷복제 9.테스트수행',
 	`tcode` VARCHAR(50) NOT NULL DEFAULT '' COLLATE 'utf8_general_ci',
 	`tdesc` VARCHAR(80) NOT NULL DEFAULT '' COMMENT '테스트설명' COLLATE 'utf8_general_ci',
 	`tnum` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '10' COMMENT '쓰레드 수',
@@ -94,6 +95,7 @@ CREATE TABLE IF NOT EXISTS  `texecjob` (
 	`tcnt` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '대상건수',
 	`ccnt` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '처리건수',
 	`ecnt` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '오류건수',
+	`pidv` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '작업pid',
 	`startDt` DATETIME NULL DEFAULT NULL COMMENT '작업시작시간',
 	`endDt` DATETIME NULL DEFAULT NULL COMMENT '작업종료시간',
 	`msg` MEDIUMTEXT NULL DEFAULT '' COMMENT '작업메세지' COLLATE 'utf8_general_ci',
@@ -101,8 +103,17 @@ CREATE TABLE IF NOT EXISTS  `texecjob` (
 )
 COMMENT='테스트작업요청\r\njobkind :\r\n0. tcode 에  etc의 정보를 이용하여 캡쳐수행\r\n1. tcode 에  infile 을 etc 조건적용하여 import\r\n3. tcode 애 infile 의 테스트 id를 복사해옴  infil -> tcode ( etc 조건적용 )\r\n9. 테스트송신'
 COLLATE='utf8_general_ci'
-ENGINE=InnoDB;
+ENGINE=InnoDB
+;
 
+CREATE TABLE `texecjson` (
+	`pkey` INT(11) NOT NULL COMMENT 'texecjob id',
+	`jdata` LONGTEXT NULL DEFAULT NULL COLLATE 'utf8mb4_bin',
+	PRIMARY KEY (`pkey`) USING BTREE
+)
+COLLATE='utf8_general_ci'
+ENGINE=InnoDB
+;
 CREATE TABLE `texecing` (
 	`pkey` INT(10) UNSIGNED NOT NULL COMMENT 'jobid',
 	`tcnt` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '총건수',
@@ -132,7 +143,7 @@ CREATE TABLE IF NOT EXISTS `tlevel` (
   PRIMARY KEY (`lvl`) USING BTREE
 ) ENGINE=InnoDB COMMENT='테스트 level 단위, 통합, 실시간 ';
 
-INSERT INTO tlevel (lvl,lvl_nm) values('1','단위'),('2','통합'),('3','정합성') ;
+INSERT INTO tlevel (lvl,lvl_nm, svc_cnt, data_cnt, scnt) values('1','단위',1,10,9),('2','통합',1,10,9),('3','정합성',0,0,0) ;
 
 CREATE TABLE IF NOT EXISTS `tloaddata` (
   `pkey` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -280,6 +291,8 @@ CREATE TABLE IF NOT EXISTS `ttcppacket` (
 	INDEX `codesvc` (`tcode`, `uri`) USING BTREE
 
 ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
+
+CREATE table tinputdata LIKE ttcppacket ;
 
 DELIMITER //
 CREATE FUNCTION `uf_getapp`(`in_ip` VARCHAR(50),

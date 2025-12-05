@@ -34,8 +34,8 @@ logf(moment().format("YYYYMMDDHHmm") + ".log");
       
       const rows = await con.query("select pkey, jobkind, tcode, tnum,dbskip, exectype,etc,in_file, \
                   reqnum, repnum, limits, ifnull(msg,'') msg from texecjob \
-                WHERE reqstartdt <= NOW() and resultstat=0 and jobkind in (1,9) \
-                  AND TCODE in (select code from tmaster where pro != '3') order by reqstartdt LIMIT 1" ) ;
+                WHERE reqstartdt <= NOW() and resultstat=0 and jobkind in (1,9) and ppkey = 0 \
+                  AND TCODE in (select code from tmaster where pro != '3' and lvl != '0') order by reqstartdt LIMIT 1" ) ;
         jcnt++ ;
         if (jcnt % 100 == 0) console.log(cdate(), "exec checking..", jcnt) ;
         if (rows.length == 0) return;

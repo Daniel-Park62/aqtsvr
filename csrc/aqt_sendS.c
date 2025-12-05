@@ -231,7 +231,8 @@ int get_target(char *test_code)
   char cquery[1000];
   memset(cquery, 0, sizeof(cquery));
   snprintf(cquery, sizeof(cquery),
-           "SELECT a.thost, a.cmpcode, a.lvl FROM tmaster a WHERE a.code = '%s'", test_code);
+           "SELECT if(b.thost>'', b.thost,a.thost), a.cmpcode, a.lvl FROM tmaster a,texecjob b "
+           "WHERE a.code = '%s' and b.pkey=%ld", test_code, execkey);
 
   if (mysql_query(conn, cquery))
   {
