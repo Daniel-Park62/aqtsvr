@@ -293,7 +293,7 @@ int main(int argc, char *argv[])
   }
 
   char query[2048] = { 0, };
-  sprintf(query, "UPDATE texecjob SET pidv=%ld WHERE pkey=%ld", (long)msgkey, execkey) ;
+  sprintf(query, "UPDATE texecing SET pidv=%ld WHERE pkey=%ld", (long)msgkey, execkey) ;
   mysql_query(conn,query);
   mysql_commit(conn);
 

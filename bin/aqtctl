@@ -3,7 +3,8 @@ if [ $# -lt 1 ] ; then
   echo " aqtctl [start|stop] [HTTP|TMAX|TCP]"
   exit ;
 fi
-# AQTTYPE ( TMAX, HTTP ) 기본값 HTTP
+# AQTTYPE ( TMAX, HTTP ) 
+declare -u AQTTYPE=${2:-'HTTP'}
 cd $AQTHOME
 
 function jobs_f1 {
@@ -11,7 +12,7 @@ function jobs_f1 {
 }
 
 function jobs_f2 {
-  echo `ps -ef |egrep "node (aqt_execJob|aqt_resend)" |grep -v grep | awk '{printf "%d ",$2}'` ;
+  echo `ps -ef |egrep "node (aqt_execJob|aqt_resend)\.js" |grep -v grep | awk '{printf "%d ",$2}'` ;
 }
 
 # tmax type start
@@ -57,8 +58,8 @@ function start_f2 {
   # LOGF1="${AQTLOG}/"`date +%Y%m%d`"_$$.jslog"
   # LOGF2="${AQTLOG}/"`date +%Y%m%d`rs"_$$.jslog"
 
-  nohup node aqt_execJob & # >$LOGF1 2>&1 &
-  nohup node aqt_resend & # >$LOGF2 2>&1 &
+  nohup node aqt_execJob.js & # >$LOGF1 2>&1 &
+  nohup node aqt_resend.js & # >$LOGF2 2>&1 &
 
 }
 function stop_f2 {
@@ -70,7 +71,7 @@ function stop_f2 {
     echo "중지할 작업이 없습니다.";
   fi
 }
-export AQTTYPE=${2:-'HTTP'};
+
 case $1 in
   start|restart|reload)
     echo "deamon start ${AQTTYPE}";

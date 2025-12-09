@@ -9,7 +9,7 @@ do
 			if [ -z $pkey ]; then exit ; fi
 			echo "$pkey " ;
 			$AQTHOME/bin/aqtconn "UPDATE texecjob SET resultstat = 1, startDt=NOW(), endDt=NULL WHERE pkey=$pkey; commit;" ;
-			(./aqt_execjob.sh $pkey) &  
+			(./aqt_execjob.sh $pkey; ./aqt_execChild $pkey) &  
 		done
 		sleep 0.2;
 done
