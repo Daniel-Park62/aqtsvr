@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 
 while :
 do
@@ -13,8 +13,9 @@ do
 		done
 
 		read pkey pidv <<<`$AQTHOME/bin/aqtconn "select pkey,pidv from texecing where pidv > 0 and reqkill = '1' LIMIT 1 "` ;
-		if [ -z $pidv ]; then continue; fi
-		(kill $pidv ) &
-		$AQTHOME/bin/aqtconn "UPDATE texecing SET reqkill='' where pkey=$pkey" ;
+		if [[ $pidv -gt 0 ]]; then 
+			(kill $pidv ) &
+			$AQTHOME/bin/aqtconn "UPDATE texecing SET reqkill='' where pkey=$pkey" ;
+		fi
 		sleep 0.2;
 done
