@@ -1,0 +1,6 @@
+[aqtExecJob] 12-17 14:05:09 * start Execute Job
+[aqtExecJob] 12-17 14:05:41 child pid=>  19332
+AqtTimeOut: 3000  (set AqtTimeOut=ms) 19332
+[sendMain3] 12-17 14:05:41 threads: 10 { dbskip: false, aqttimeout: 3000 }
+[sendMain3] 12-17 14:05:41 Start 테스트id(K102) 작업수(10) cond() limit() data건수(654) pid(19332)
+[aqtExecJob] 12-17 14:10:19 ## Exec job program End

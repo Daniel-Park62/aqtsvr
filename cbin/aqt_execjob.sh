@@ -50,7 +50,7 @@ MKEY=$$
 
 LOGF="${AQTLOG}/"`date +%Y%m%d`"_${MKEY}.mlog"
 #  read tcnt <<<`$AQTHOME/bin/aqtconn "select count(1) from ttcppacket where tcode = '$tcode' $COND2" ` ;
-$AQTHOME/bin/aqtconn "INSERT INTO texecing (pkey,tcnt) values ($pkey,$tcnt) on duplicate key update tcnt=$tcnt,ccnt=0,ecnt=0 ;   commit; " ;
+$AQTHOME/bin/aqtconn "INSERT INTO texecing (pkey) values ($pkey) on duplicate key update tcnt=1,ccnt=0,ecnt=0 ;   commit; " ;
 echo "./aqt_sendS -t $tcode $COND ${SELCNT} -i $intm -p $tnum -x$1 >>$LOGF 2>&1" | sh -v 
 $AQTHOME/bin/aqtconn "update tmaster set tdate = curdate() where code = '$tcode' ;   commit; " ;
 

@@ -1,12 +1,11 @@
 "use strict";
-const moment = require('moment');
 const fs = require('fs');
 const path = require('path');
 const LDIR = process.env.AQTLOG || '.' ;
 module.exports = function(fname, msz = 100*1_000_000) {
 
   const logfname = path.resolve(LDIR,fname) ;
-  console.log( logfname ) ;
+  // console.log( logfname ) ;
   let clogfile = logfname ;
   let seq = 0 ;
   const wfs = fs.createWriteStream(clogfile,{flags:'a'}) ;

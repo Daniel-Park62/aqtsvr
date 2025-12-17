@@ -3,12 +3,12 @@
 */
 
 "use strict";
-const moment = require('moment');
-const cdate = () => "[sendMain] " + moment().format("MM/DD HH:mm:ss.SSS :");
+
+const cdate = () => "[sendMain3] " + (new Date()).toLocaleString('lt').substring(5) ;
 
 const MAX_RESP_LEN = 1024 * 32;
 
-const { Worker, workerData } = require('worker_threads');
+const { fork } = require('child_process');
 
 const aqttimeout = Number(process.env.AqtTimeOut) || 30000;
 console.log("AqtTimeOut:", aqttimeout, " (set AqtTimeOut=ms)", process.pid);
@@ -17,7 +17,17 @@ let con = null;
 let conR = null;
 let dbskip = false;
 
-module.exports = async function (param) {
+process.on('SIGTERM', () => {
+  con.end(); conR.end(); 
+  console.log(cdate(),"stop process"); 
+  process.exit(0);
+});
+
+process.on('message', (param) => {
+  main(param) ;
+});
+
+async function main (param) {
   con = await require('../db/db_con1'); // param.conn;
   conR = await require('../db/db_con1'); // param.conn;
   if (!param.loop) param.loop = 1;
@@ -40,8 +50,7 @@ module.exports = async function (param) {
     "where t.tcode = ? " + condi + orderby + vlimit, [param.tcode]) ;
   tcnt = rows.length ;
   if (param.hasOwnProperty('jobId')  ) {
-          con.query("insert into texecing (pkey,tcnt,ccnt,ecnt) values (?,?,0,0) " +
-            "on duplicate key update tcnt = ?, ccnt = 0, ecnt= 0 ", [param.jobId, tcnt,  tcnt ]);
+          con.query(" update texecing set tcnt = ?, ccnt = 0, ecnt= 0, pidv = ? where pkey = ? ", [tcnt, process.pid, param.jobId ]);
   }
   console.log("%s Start 테스트id(%s) 작업수(%d) cond(%s) limit(%s) data건수(%d) pid(%d)"
         , cdate(), param.tcode, param.tnum, condi, vlimit, tcnt, process.pid);
@@ -59,14 +68,18 @@ module.exports = async function (param) {
     // console.log("delay2:",delay) ;
 
     while(threads.length > 0) {
-      const th = threads.find(t => t.busy == 0);
+      const ix = threads.findIndex(t => t.busy == 0);
+      if (ix > -1) {
+      const th = threads.splice(ix,1)[0];
       // console.log(cdate(),'loop',th, cnt) ;
-      if (th) {
-        th.busy = 1;
-        th.wkthread.postMessage(row.pkey);
-        break ;
+        if (th) {
+          threads.push(th);
+          th.busy = 1;
+          th.wkthread.send(row.pkey);
+          break ;
+        }
       }
-      await sleep(1);
+      await sleep(0);
       // if (delay > 50)  delay -= 50 ; else delay = 0;
     };
 
@@ -75,8 +88,8 @@ module.exports = async function (param) {
   };
   console.log(cdate(), param.tcode, "Count:", cnt, "*Jobid:" + param?.jobId, "*** read ended ***");
 
-  let ival = setInterval(async () => {
-    for (const v of threads) { if (!v.busy) await v.wkthread.terminate() }
+  const ival = setInterval(async () => {
+    for (const v of threads) { if (!v.busy) await v.wkthread.kill() }
     // console.log(PGNM, "threads :", threads.length);
     if (threads.length == 0) {
       clearInterval(ival);
@@ -108,39 +121,39 @@ module.exports = async function (param) {
     let TYPEF;
     // if (process.env.AQTTYPE === 'TCP')
     if (param.aqttype === 'TCP')
-      TYPEF = '/tcpRequest.js';
+      TYPEF = '/tcpRequest3.js';
     else if (param.aqttype === 'UDP')
-      TYPEF = '/udpRequest.js';
+      TYPEF = '/udpRequest3.js';
     else
-      TYPEF = '/httpRequest.js';
+      TYPEF = '/httpRequest3.js';
 
     let msgs = " 총 " + tcnt + '건 송신 ' + (param.dbskip ? '(no Update)' : '') + (param.loop > 1 ? param.loop + " 회 반복" : '');
-    const wdata = { workerData: { dbskip: param.dbskip, aqttimeout } };
+    const wdata = {  dbskip: param.dbskip, aqttimeout  };
     if (param.tnum < 1) param.tnum = 1;
     for (let i = 0; i < param.tnum; i++) {
 
       // const wdata =  [param.tcode, param.etc,  `${i},${pcnt}`  ];
       // console.log(PGNM, wdata) ;
       // msgs  += ':'+vlimit;
-      const wkthread = new Worker(__dirname + TYPEF, wdata)
+      const wkthread = fork(__dirname + TYPEF, [JSON.stringify(wdata)])
         .on('exit', () => {
           const i = threads.findIndex(w => w.wkthread == wkthread);
           if (i !== -1) threads.splice(i, 1);
 
           // console.log(PGNM, i, `Thread exiting, ${threads.length} running...`);
           if (threads.length == 0) {
-            console.log(cdate(), 'thread all ended !!')
+            console.log(cdate(), 'child all ended !!')
           }
         });
       wkthread.on('error', (err) => {
-        console.log(cdate(), "Thread error ", err);
+        console.log(cdate(), "child error ", err);
         if (param.hasOwnProperty('jobId'))
           con.query("UPDATE texecjob set tcnt=?,ccnt=?,ecnt=?,resultstat = 3, msg = concat(msg, now(),':', ?,'\r\n'), endDt = now() where pkey = ?", [tcnt,cnt,ecnt, err, param.jobId]);
       });
       wkthread.on('message', (dat) => {
         // console.log(PGNM, "Thread data ", dat);
         if (dat?.svCook) {
-          threads.forEach(t => t.wkthread.postMessage(dat));
+          threads.forEach(t => t.wkthread.send(dat));
           return;
         } 
         dat?.ok && ucnt++;
@@ -157,10 +170,11 @@ module.exports = async function (param) {
       // wkthread.postMessage(wdata) ;
 
     }
-    console.log(cdate(), "threads:", threads.length, wdata.workerData);
+    console.log(cdate(), "threads:", threads.length, wdata);
 
   }
 
 }
-process.on('SIGINT', () => {con.end(); conR.end();});
+
+
 process.on('uncaughtException', (err) => { console.error(cdate(), err) });

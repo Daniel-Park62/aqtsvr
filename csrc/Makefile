@@ -7,7 +7,7 @@ TMAXDIR = /tmax
 
 LDFLAGS = 
 LDLIBS = -L${MARIADB_HOME}/lib -lmariadb -L${BDIR} -laqtcom
-TARGETS = libaqtcom.so aqt_sendS aqt_sendM aqt_sendM_new aqt_request aqt_reqsub aqt_sendM2 aqt_rnsend2 aqt_realsend
+TARGETS = libaqtcom.so aqt_sendS aqt_sendM aqt_sendM_new aqt_request aqt_reqsub aqt_sendM2 aqt_rnsend2 aqt_realsend 
 .PHONY: all clean
 all : $(TARGETS:%=$(BDIR)/%)
 
@@ -38,6 +38,9 @@ ${BDIR}/aqt_sendM_new: aqt_sendM_new.c
 
 ${BDIR}/aqt_reqsub: aqt_reqsub.c 
 	${CC} ${CFLAGS} -o $@ $? ${LDLIBS} -L${TMAXDIR}/lib64 -lmariadb -lcli
+
+aqt_dbpool.o: aqt_dbpool.c 
+	${CC} ${CFLAGS} -c $? ${LDLIBS}
 
 .c.o:
 
