@@ -1,3 +1,16 @@
+* AQT 설치시 당사가 설치함
+mariadb 11.4
+nodejs 20.19
+
+* 리눅스 구성시 필수설치
+tcpdump 
+perl 5
+
+* 리눅스 서버 최소사양
+  CPU 16 core 이상
+  MEM 64 gb 이상
+  저장용량 500 gb 이상 ( 전문데이터의 크기에 따라 결정 )
+  
 # 날짜형식 확인
 rm /etc/localtime
 ln -s /usr/share/zoneinfo/Asia/Seoul /etc/localtime
@@ -41,6 +54,7 @@ GRANT SELECT, DELETE, INSERT, EVENT, UPDATE, TRIGGER  ON `aqtdb`.* TO 'aqtusr'@'
 /usr/local/mysql/support-files/mysql.server 수정후
 
 /usr/local/mysql/support-files/mysql.server start
+
 
 ##########  my.cnf
 
@@ -91,6 +105,22 @@ log-error=/db/log/mariadb.log
 pid-file=/db/log/mariadb.pid
 
 ==================
+{"aqttype":"TCP",
+"ptype":"C",
+"ctype":0,
+"dstf":"",
+"immd":0,
+"otherOpt":"",
+"tcode":"",
+"srcip":"",
+"dstip":"172.16.8.88",
+"dstport":"",
+"svcid":"",
+"otherCond":"",
+"norcv":0,
+"dbskip":0,
+"maxcnt":0}
+=====================
 Unzip the binary archive to any directory you wanna install Node, I use /usr/local/lib/nodejs
  VERSION=v18.16.0
  DISTRO=linux-x64

@@ -70,6 +70,18 @@ CREATE TABLE IF NOT EXISTS `tapplication` (
 
 INSERT INTO tapplication (appid, appnm, manager ) VALUES('AP01','기본','AQT') ;
 
+CREATE TABLE IF NOT EXISTS `taqtprog` (
+	`progno` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+	`pgb` TINYINT(1) UNSIGNED NULL DEFAULT NULL COMMENT '1. 테스트 시작 전 2.개별송신전 3.개별송신후  4.테스트 완료후',
+	`pgkind` TINYINT(1) UNSIGNED NULL DEFAULT NULL COMMENT '1.JS  2. c',
+	`nm` VARCHAR(50) NULL DEFAULT NULL COMMENT '프로그램명' COLLATE 'utf8_general_ci',
+	`src` LONGTEXT NULL DEFAULT NULL COMMENT '소스내용' COLLATE 'utf8_general_ci',
+	PRIMARY KEY (`progno`) USING BTREE
+)
+COMMENT='테스트 전후 수행하는 프로세스 정의'
+COLLATE='utf8_general_ci'
+ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS `texecjob` (
 	`pkey` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'job id',
 	`ppkey` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '선행 id',
@@ -123,6 +135,17 @@ CREATE TABLE IF NOT EXISTS `texecing` (
 	`reqkill` CHAR(1) NULL DEFAULT '' COMMENT '작업중지요청 \'1\'' COLLATE 'utf8_general_ci',
 	PRIMARY KEY (`pkey`) USING HASH
 ) ENGINE=MEMORY ;
+
+CREATE TABLE IF NOT EXISTS `texecprog` (
+	`pkey` INT(10) UNSIGNED NOT NULL COMMENT 'texecjob id',
+	`progno` INT(10) UNSIGNED NOT NULL COMMENT '적용프로그램 id',
+	`sn` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+	PRIMARY KEY (`pkey`, `progno`) USING BTREE
+)
+COMMENT='작업시 적용될 프로그램 정의'
+COLLATE='utf8_general_ci'
+ENGINE=InnoDB
+;
 
 CREATE TABLE IF NOT EXISTS `thostmap` (
   `pkey` int(10) unsigned NOT NULL AUTO_INCREMENT,

@@ -11,7 +11,7 @@ const MAX_RESP_LEN = 1024 * 32;
 const { fork } = require('child_process');
 
 const aqttimeout = Number(process.env.AqtTimeOut) || 30000;
-console.log("AqtTimeOut:", aqttimeout, " (set AqtTimeOut=ms)", process.pid);
+console.log(cdate(),"AqtTimeOut:", aqttimeout);
 
 let con = null;
 let conR = null;

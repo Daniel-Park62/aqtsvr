@@ -19,6 +19,8 @@
     "iconv-lite": "^0.7.0",
     "mariadb": "^3",
     "moment": "^2.29.1",
-    "oracledb": "^6.6.0"
+    "oracledb": "^6.6.0",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0"
   }
 }
