@@ -47,7 +47,8 @@ static char _conn_label[VNAME_SZ];
 static char _test_oltp[L_TR_CODE + 1];
 static char cond_svcid[VNAME_SZ];
 static char cond_limit[VNAME_SZ];
-static char cond_etc[1024];
+static char cond_etc[L_COND];
+static time_t start, endt ;
 
 static void Usage(void);
 static void print_status(void);
@@ -81,7 +82,7 @@ void _Signal_Handler(int sig)
   }
 
   LOGINFO("%s SIGNAL(%d) [%s] Read:(%d) ", __FILE__, sig, _test_code, _iTotCnt);
-  Closed(1);
+  Closed(0);
   exit(1);
 }
 
@@ -92,6 +93,7 @@ static void fork_proc(int c)
   char cexec[50];
 
   sprintf(carr1, "-q%d", msgkey) ;
+  if ( ! _iDB ) strcat(carr1," -d");
   if (_lvl == '3')
   {
     strcpy(cexec, "./aqt_sendM2");
@@ -132,7 +134,7 @@ int _Init(int argc, char *argv[])
       snprintf(cond_svcid, VNAME_SZ, "and a.uri rlike '%s' ", _test_oltp);
       break;
     case 'e':
-      snprintf(cond_etc, VNAME_SZ, "and (%s) ", optarg);
+      snprintf(cond_etc, L_COND, "and (%s) ", optarg);
       break;
     case 'u':
       snprintf(cond_limit, VNAME_SZ, "LIMIT %s", optarg);
@@ -272,7 +274,7 @@ int main(int argc, char *argv[])
 {
   char c_sttime[21];
   char c_ettime[21];
-  time_t start, endt ;
+  
   MSGREC msg;
 
   if (connectDB(&conn))   return (1);
@@ -292,12 +294,12 @@ int main(int argc, char *argv[])
     return (-1);
   }
 
-  char query[2048] = { 0, };
-  sprintf(query, "UPDATE texecing SET pidv=%ld WHERE pkey=%ld", (long)msgkey, execkey) ;
+  char query[8000] = { 0, };
+  sprintf(query, "UPDATE texecing SET pidv=%ld,elaps=0  WHERE pkey=%ld", (long)msgkey, execkey) ;
   mysql_query(conn,query);
   mysql_commit(conn);
 
-  snprintf(query, 2000, "SELECT pkey,  UNIX_TIMESTAMP(o_stime) "
+  snprintf(query, 8000, "SELECT pkey,  UNIX_TIMESTAMP(o_stime) "
                         " FROM ttcppacket t  "
                         " WHERE t.tcode = '%s'  %s %s %s %s ",
            _test_code, cond_svcid, cond_etc, (_test_code[0] == 'Z' ? "ORDER BY rand()" : ""), cond_limit);
@@ -329,7 +331,7 @@ int main(int argc, char *argv[])
   endt = time(NULL);
   fork_proc(_procnum);
 
-  LOGINFO("** select elapsed(%.3lf) Number of Rows(%ld) Start process**",difftime(endt,start), num_rows) ;
+  LOGINFO("** select elapsed(%.0lf) Number of Rows(%ld) Start process**",difftime(endt,start), num_rows) ;
   sprintf(query,"UPDATE texecing SET tcnt=%ld WHERE pkey=%ld", num_rows, execkey) ;
   mysql_query(conn,query) ;
   mysql_commit(conn) ;
@@ -339,6 +341,7 @@ int main(int argc, char *argv[])
   double cc_time = 0.0;
   long lwt;
 REPEAT:
+  start  = time(NULL);
   while ((row = mysql_fetch_row(result)))
   {
     unsigned long pkey = atol(row[0]);
@@ -401,7 +404,8 @@ void print_status()
 static void update_ccnt(unsigned long cnt) {
   if (execkey) {
     char query[1024];
-    sprintf(query,"UPDATE texecing SET ccnt=%ld WHERE pkey=%ld", cnt, execkey) ;
+    endt = time(NULL);
+    sprintf(query,"UPDATE texecing SET ccnt=%ld,elaps=%.0lf WHERE pkey=%ld", cnt,difftime(endt,start), execkey) ;
     mysql_query(conn,query);
     mysql_commit(conn) ;
   }

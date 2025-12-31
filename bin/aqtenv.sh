@@ -1,6 +1,6 @@
-export AQTHOME=/f/AQTAPP/aqtsvr
+export AQTHOME=/mnt/f/AQTAPP/aqtsvr
 export AQTLOG=${AQTHOME}/logs
-# AQTDBIP=localhost
+export AQTDBIP=172.22.160.1
 # AQTDBPORT=3306
 # AQTDBNAME=aqtdb2
 # AQTDBUSER=

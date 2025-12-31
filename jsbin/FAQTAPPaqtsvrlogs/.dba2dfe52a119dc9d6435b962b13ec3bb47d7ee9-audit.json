@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": false,
+        "amount": 30
+    },
+    "auditLog": "F:\\AQTAPP\\aqtsvr\\logs/.dba2dfe52a119dc9d6435b962b13ec3bb47d7ee9-audit.json",
+    "files": [
+        {
+            "date": 1766988923997,
+            "name": "F:\\AQTAPP\\aqtsvr\\logs/aqt20251229.error.log",
+            "hash": "66de4fa8dd3c767fe1adcedfcd33942eca6560e11e073a423fe51e45546b273c"
+        }
+    ],
+    "hashType": "sha256"
+}

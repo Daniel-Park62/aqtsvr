@@ -209,10 +209,6 @@ module.exports = function (args) {
     parser.on('end', endprog);
 
     async function insert_data(datas) {
-        if (args.norcv == 'X')
-            await write_rec(datas);
-        else {
-            let serr = '';
             await con.query("INSERT INTO TLOADDATA \
                 (TCODE, O_STIME,STIME,RTIME, SRCIP,SRCPORT,DSTIP,DSTPORT,PROTO, URI,SEQNO,ACKNO,slen,rlen,SDATA,RDATA) \
                 values \
@@ -221,6 +217,7 @@ module.exports = function (args) {
                     datas.uri, datas.seqno, datas.ackno, datas.slen,
                     datas.rdata.length, datas.sdata, datas.rdata])
                 .then(dt => {
+                    if (args?.imm == 1) write_rec(dt.insertId) ;
                     icnt += 1;
                     workTime = new Date();
                     if (icnt % 5000 == 0) {
@@ -232,21 +229,11 @@ module.exports = function (args) {
                     console.error(err);
                     process.emit('SIGINT');
                 });
-        }
     }
 
-    function write_rec(datas) {
-        return new Promise(function (resolve, reject) {
-            if (datas.slen > datas.sdata.length) reject();
-            let pos = datas.sdata.indexOf(0x00);
-            if (pos == -1) pos = datas.sdata.length;
-            let rec = "~AQTD~" + datas.uri.padEnd(32, ' ') + datas.stime.padEnd(26, ' ') + datas.srcip.padEnd(15, ' ') + util.format('%d', datas.srcport).padStart(5, '0')
-                + datas.dstip.padEnd(15, ' ') + util.format('%d', datas.dstport).padStart(5, '0') + util.format('%d', datas.seqno).padStart(15, '0')
-                + util.format('%d', datas.ackno).padStart(15, '0') + util.format('%d', datas.slen).padStart(8, '0');
-            let brec = Buffer.concat([Buffer.from(rec), datas.sdata.slice(0, pos)]);
-            process.stdout.write(brec);
-            resolve(icnt++);
-        });
+    function write_rec(pid) {
+        let rec = "~AQTD~" + util.format('%d', pid).padStart(15, '0') + "\n";
+        process.stdout.write(rec);
     }
 
     async function endprog() {

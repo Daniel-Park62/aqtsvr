@@ -30,15 +30,17 @@ module.exports = function (args) {
     let ltype = 1;
     let child = null ;
     icnt = 0;
-    console.log("%s Start 테스트id(%s) 입력파일(%s)", PGNM, args.tcode, args.dstv);
-    if (args.dstv) {
-        if (!fs.statSync(args.dstv).isFile()) throw 'is not File';
-        dstobj = args.dstv;
+    console.log("%s Start 테스트id(%s) 입력파일(%s)", PGNM, args.tcode, args.dstf);
+    if (args.dstf) {
+        if (!fs.statSync(args.dstf).isFile()) throw 'is not File';
+        dstobj = args.dstf;
     } else {
         // console.error(err);
-        console.log(PGNM, "START tcpdump");
-        const NETIP = (args.dstip ? ` && ( net ${args.dstip} ) ` : "");
-        child = spawn('tcpdump -s0 -w -  ', [args.devno,'"tcp && tcp[13]&16 != 0 ' , NETIP ,args.otherCond ,'"'], { shell: true });
+        let conds = 'tcp && tcp[13]&16 != 0 ';
+        conds += (args.dstip ? ` && ( net ${args.dstip} ) ` : "");
+        conds += (args.otherCond ? ` &&  ${args.otherCond} ` : "");
+        console.log(PGNM, `tcpdump -s0 -w - ${args?.otherOpt} " ${conds} "` );
+        child = spawn(`tcpdump -s0 -w - ${args?.otherOpt} `, ['"' , conds ,'"'], { shell: true });
         dstobj = child.stdout;
         process.on('SIGINT', () => child.kill());
     }

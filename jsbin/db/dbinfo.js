@@ -13,7 +13,7 @@ module.exports = {
     real: { // real server db info
       host: process.env.AQTDBIP  ?? '127.0.0.1',
       port: process.env.AQTDBPORT  ||'3306',
-      user: process.env.AQTDBUSER || 'aqtdb',
+      user: process.env.AQTDBUSER || 'aqtusr',
       password: process.env.AQTDBPASS || 'Dawinit1!',
       database: process.env.AQTDBNAME || 'aqtdb2',
       validationQuery : 'select 1', 

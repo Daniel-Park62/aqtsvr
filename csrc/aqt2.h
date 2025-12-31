@@ -13,6 +13,7 @@
 #define L_MSG_CODE 4
 #define L_TIME 8
 #define L_MAIN_MSG 80
+#define L_COND 2000 // 조건
 
 #define TP_ENV_FILE "./tmax.env"
 #define LOG_PATH "../logs"

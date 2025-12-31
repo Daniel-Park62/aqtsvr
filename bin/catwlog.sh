@@ -1,5 +1,5 @@
 
-for FL in `ls -rt ${AQTLOG}/*.log 2>/dev/null | tail -2` ;
+for FL in `ls -rt ${AQTLOG}/*.*log 2>/dev/null | tail -2` ;
 do
-  echo $FL ; tail -100 $FL ; echo "---<< end of file >>---" ; 
+  head $FL ; tail -60 $FL ; echo "---<< $FL end of file >>---" ; 
 done

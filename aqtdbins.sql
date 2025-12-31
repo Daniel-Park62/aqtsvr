@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS `texecjob` (
 	`tdesc` VARCHAR(80) NOT NULL DEFAULT '' COMMENT '테스트설명' COLLATE 'utf8_general_ci',
 	`tnum` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '10' COMMENT '쓰레드 수',
 	`dbskip` CHAR(1) NOT NULL DEFAULT '0' COMMENT '1. dbupdate skip' COLLATE 'utf8_general_ci',
-	`etc` VARCHAR(256) NOT NULL DEFAULT '' COMMENT '기타 선택조건' COLLATE 'utf8_general_ci',
+	`etc` VARCHAR(2500) NOT NULL DEFAULT '' COMMENT '기타 선택조건' COLLATE 'utf8_general_ci',
 	`in_file` VARCHAR(100) NOT NULL DEFAULT '' COMMENT '입력파일 or src Tcode' COLLATE 'utf8_general_ci',
 	`limits` VARCHAR(30) NOT NULL DEFAULT '' COMMENT '처리건수 ( 예: 1,10 )' COLLATE 'utf8_general_ci',
 	`cmdl` VARCHAR(256) NOT NULL DEFAULT '' COMMENT '수행명령' COLLATE 'utf8_general_ci',
@@ -126,15 +126,16 @@ COLLATE='utf8_general_ci'
 ENGINE=InnoDB
 ;
 CREATE TABLE IF NOT EXISTS `texecing` (
-	`pkey` INT(10) UNSIGNED NOT NULL COMMENT 'jobid',
-	`tcnt` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '총건수',
-	`ccnt` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '처리건수',
-	`ecnt` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '오류건수',
+	`pkey` INT(10) UNSIGNED NOT NULL COMMENT 'texecjob id',
+	`tcnt` INT(10) UNSIGNED NULL DEFAULT '0' COMMENT '총건수',
+	`ccnt` INT(10) UNSIGNED NULL DEFAULT '0' COMMENT '처리건수',
+	`ecnt` INT(10) UNSIGNED NULL DEFAULT '0' COMMENT '오류건수',
 	`qcnt` INT(10) UNSIGNED NULL DEFAULT '0',
 	`pidv` INT(10) UNSIGNED NULL DEFAULT '0' COMMENT '작업pid',
-	`reqkill` CHAR(1) NULL DEFAULT '' COMMENT '작업중지요청 \'1\'' COLLATE 'utf8_general_ci',
+	`elaps` DOUBLE(15,3) UNSIGNED NULL DEFAULT '0.000' COMMENT '경과시간(초)',
+	`reqkill` CHAR(1) NULL DEFAULT '' COMMENT '"1".작업중지요청 ' COLLATE 'utf8_general_ci',
 	PRIMARY KEY (`pkey`) USING HASH
-) ENGINE=MEMORY ;
+	) ENGINE=MEMORY ;
 
 CREATE TABLE IF NOT EXISTS `texecprog` (
 	`pkey` INT(10) UNSIGNED NOT NULL COMMENT 'texecjob id',
@@ -170,35 +171,38 @@ CREATE TABLE IF NOT EXISTS `tlevel` (
 INSERT INTO tlevel (lvl,lvl_nm, svc_cnt, data_cnt, scnt) values('1','단위',1,10,9),('2','통합',1,10,9),('3','정합성',0,0,0) ;
 
 CREATE TABLE IF NOT EXISTS `tloaddata` (
-  `pkey` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `tcode` varchar(50) NOT NULL,
-  `o_stime` datetime(6) NOT NULL COMMENT 'org 송신시간',
-  `stime` datetime(6) NOT NULL COMMENT '송신시간',
-  `rtime` datetime(6) NOT NULL COMMENT '수신시간',
-  `elapsed` double(22,3) NOT NULL DEFAULT (time_to_sec(`rtime`) - time_to_sec(`stime`)) COMMENT '소요시간',
-  `svctime` double(22,3) GENERATED ALWAYS AS (time_to_sec(`rtime`) - time_to_sec(`stime`)) VIRTUAL,
-  `srcip` varchar(30) DEFAULT NULL COMMENT '소스ip',
-  `srcport` int(10) unsigned DEFAULT NULL COMMENT '소스port',
-  `dstip` varchar(30) DEFAULT NULL COMMENT '목적지ip',
-  `dstport` int(10) unsigned DEFAULT NULL COMMENT '목적지port',
-  `proto` char(1) DEFAULT '0' COMMENT '0.tcp 1.http 2.https',
-  `method` varchar(20) DEFAULT NULL COMMENT 'method',
-  `uri` varchar(512) DEFAULT NULL,
-  `seqno` int(10) unsigned DEFAULT NULL,
-  `ackno` int(10) unsigned DEFAULT NULL,
-  `rcode` int(10) unsigned DEFAULT 0 COMMENT 'return code',
-  `sflag` char(1) GENERATED ALWAYS AS (if(`rcode` > 399,'2',if(`rcode` = 0,'0','1'))) VIRTUAL,
-  `rhead` varchar(8192) DEFAULT NULL COMMENT 'response header',
-  `errinfo` varchar(200) DEFAULT NULL,
-  `slen` int(10) unsigned DEFAULT NULL COMMENT '송신데이터길이',
-  `rlen` int(10) unsigned DEFAULT NULL COMMENT '수신데이터길이',
-  `sdata` mediumblob DEFAULT NULL COMMENT '송신데이터',
-  `rdata` mediumblob DEFAULT NULL COMMENT '수신데이터',
-  `cdate` datetime(6) DEFAULT current_timestamp(6) COMMENT '생성일시',
-  PRIMARY KEY (`pkey`) USING BTREE,
-  KEY `tcode` (`tcode`,`o_stime`) USING BTREE,
-  KEY `uri` (`uri`,`o_stime`)
-) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
+	`pkey` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+	`tcode` VARCHAR(50) NOT NULL COLLATE 'utf8_general_ci',
+	`o_stime` DATETIME(6) NOT NULL COMMENT 'org 송신시간',
+	`stime` DATETIME(6) NOT NULL COMMENT '송신시간',
+	`rtime` DATETIME(6) NOT NULL COMMENT '수신시간',
+	`elapsed` DOUBLE(22,3) NOT NULL DEFAULT time_to_sec(timediff(`rtime`,`stime`)) COMMENT '소요시간',
+	`svctime` DOUBLE(22,3) DEFAULT NULL AS (time_to_sec(timediff(`rtime`,`stime`))) virtual,
+	`srcip` VARCHAR(30) NULL DEFAULT NULL COMMENT '소스ip' COLLATE 'utf8_general_ci',
+	`srcport` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '소스port',
+	`dstip` VARCHAR(30) NULL DEFAULT NULL COMMENT '목적지ip' COLLATE 'utf8_general_ci',
+	`dstport` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '목적지port',
+	`proto` CHAR(1) NULL DEFAULT '0' COMMENT '0.tcp 1.http 2.https' COLLATE 'utf8_general_ci',
+	`method` VARCHAR(20) NULL DEFAULT NULL COMMENT 'method' COLLATE 'utf8_general_ci',
+	`uri` VARCHAR(512) NULL DEFAULT NULL COLLATE 'utf8_general_ci',
+	`seqno` INT(10) UNSIGNED NULL DEFAULT NULL,
+	`ackno` INT(10) UNSIGNED NULL DEFAULT NULL,
+	`rcode` INT(10) UNSIGNED NULL DEFAULT '0' COMMENT 'return code',
+	`sflag` CHAR(1) DEFAULT NULL AS (if(`rcode` > 399,'2',if(`rcode` = 0,'0','1'))) virtual COLLATE 'utf8_general_ci',
+	`rhead` VARCHAR(8192) NULL DEFAULT NULL COMMENT 'response header' COLLATE 'utf8_general_ci',
+	`errinfo` VARCHAR(200) NULL DEFAULT NULL COLLATE 'utf8_general_ci',
+	`slen` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '송신데이터길이',
+	`rlen` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '수신데이터길이',
+	`sdata` MEDIUMBLOB NULL DEFAULT NULL COMMENT '송신데이터',
+	`rdata` MEDIUMBLOB NULL DEFAULT NULL COMMENT '수신데이터',
+	`cdate` DATETIME(6) NULL DEFAULT current_timestamp(6) COMMENT '생성일시',
+	PRIMARY KEY (`pkey`) USING BTREE,
+	INDEX `tcode` (`tcode`, `o_stime`) USING BTREE,
+	INDEX `uri` (`uri`, `o_stime`) USING BTREE
+)
+COLLATE='utf8_general_ci'
+ENGINE=InnoDB
+ROW_FORMAT=COMPRESSED;
 
 CREATE TABLE IF NOT EXISTS `tmaster` (
   `code` varchar(20) NOT NULL,
@@ -279,42 +283,45 @@ CREATE TABLE IF NOT EXISTS `ttasksum` (
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS `ttcppacket` (
-  `pkey` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `cmpid` int(10) unsigned NOT NULL DEFAULT 0,
-  `tcode` varchar(50) NOT NULL,
-  `appid` VARCHAR(50) NOT NULL DEFAULT '',
-  `o_stime` datetime(6) NOT NULL COMMENT 'org 송신시간',
-  `stime` datetime(6) NOT NULL COMMENT '송신시간',
-  `rtime` datetime(6) NOT NULL COMMENT '수신시간',
-  `svctime` double(22,3) GENERATED ALWAYS AS (time_to_sec(`rtime`) - time_to_sec(`stime`)) VIRTUAL,
-  `elapsed` double(22,3) NOT NULL DEFAULT (time_to_sec(`rtime`) - time_to_sec(`stime`)) COMMENT '소요시간',
-  `srcip` varchar(30) DEFAULT NULL COMMENT '소스ip',
-  `srcport` int(10) unsigned DEFAULT NULL COMMENT '소스port',
-  `dstip` varchar(30) DEFAULT NULL COMMENT '목적지ip',
-  `dstport` int(10) unsigned DEFAULT NULL COMMENT '목적지port',
-  `proto` char(1) DEFAULT '0' COMMENT '0.tcp 1.http 2.https',
-  `method` varchar(20) DEFAULT NULL COMMENT 'method',
-  `uri` varchar(512) DEFAULT NULL,
-  `seqno` int(10) unsigned DEFAULT NULL,
-  `ackno` int(10) unsigned DEFAULT NULL,
-  `rcode` int(10) unsigned DEFAULT 0 COMMENT 'return code',
-  `sflag` char(1) GENERATED ALWAYS AS (if(`rcode` > 399,'2',if(`rcode` > 199,'1','0'))) VIRTUAL,
-  `rhead` varchar(8192) DEFAULT NULL COMMENT 'response header',
-  `errinfo` varchar(200) DEFAULT NULL,
-  `slen` int(10) unsigned DEFAULT NULL COMMENT '송신데이터길이',
-  `rlen` int(10) unsigned DEFAULT NULL COMMENT '수신데이터길이',
-  `sdata` mediumblob DEFAULT NULL COMMENT '송신데이터',
-  `rdata` mediumblob DEFAULT NULL COMMENT '수신데이터',
-  `cdate` datetime(6) DEFAULT current_timestamp(6) COMMENT '생성일시',
-  `col1` VARCHAR(100)  AS (cast('' as char(100) )) virtual ,
-  `col2` VARCHAR(100)  AS (cast('' as char(100) )) virtual ,
-
-  PRIMARY KEY (`pkey`) USING BTREE,
-  INDEX `cmpid` (`cmpid`) USING BTREE,
-  INDEX `tcode` (`tcode`,`o_stime`) USING BTREE,
+	`pkey` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+	`cmpid` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+	`tcode` VARCHAR(50) NOT NULL COLLATE 'utf8_general_ci',
+	`appid` VARCHAR(50) NOT NULL DEFAULT '' COLLATE 'utf8_general_ci',
+	`o_stime` DATETIME(6) NOT NULL COMMENT 'org 송신시간',
+	`stime` DATETIME(6) NOT NULL COMMENT '송신시간',
+	`rtime` DATETIME(6) NOT NULL COMMENT '수신시간',
+	`svctime` DOUBLE(22,3) DEFAULT NULL AS (time_to_sec(timediff(`rtime`,`stime`))) virtual,
+	`elapsed` DOUBLE(22,3) NOT NULL DEFAULT time_to_sec(timediff(`rtime`,`stime`)) COMMENT '소요시간',
+	`srcip` VARCHAR(30) NULL DEFAULT NULL COMMENT '소스ip' COLLATE 'utf8_general_ci',
+	`srcport` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '소스port',
+	`o_dstip` VARCHAR(30) NULL DEFAULT NULL COMMENT '목적지ip' COLLATE 'utf8_general_ci',
+	`dstip` VARCHAR(30) NULL DEFAULT NULL COMMENT '목적지ip' COLLATE 'utf8_general_ci',
+	`o_dstport` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '목적지port',
+	`dstport` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '목적지port',
+	`proto` CHAR(1) NULL DEFAULT '0' COMMENT '0.tcp 1.http 2.https' COLLATE 'utf8_general_ci',
+	`method` VARCHAR(20) NULL DEFAULT NULL COMMENT 'method' COLLATE 'utf8_general_ci',
+	`uri` VARCHAR(512) NULL DEFAULT NULL COLLATE 'utf8_general_ci',
+	`seqno` INT(10) UNSIGNED NULL DEFAULT NULL,
+	`ackno` INT(10) UNSIGNED NULL DEFAULT NULL,
+	`rcode` INT(10) UNSIGNED NULL DEFAULT '0' COMMENT 'return code',
+	`sflag` CHAR(1) DEFAULT NULL AS (if(`rcode` > 399,'2',if(`rcode` > 199,'1','0'))) virtual COLLATE 'utf8_general_ci',
+	`rhead` VARCHAR(8192) NULL DEFAULT NULL COMMENT 'response header' COLLATE 'utf8_general_ci',
+	`errinfo` VARCHAR(200) NULL DEFAULT NULL COLLATE 'utf8_general_ci',
+	`slen` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '송신데이터길이',
+	`rlen` INT(10) UNSIGNED NULL DEFAULT NULL COMMENT '수신데이터길이',
+	`sdata` MEDIUMBLOB NULL DEFAULT NULL COMMENT '송신데이터',
+	`rdata` MEDIUMBLOB NULL DEFAULT NULL COMMENT '수신데이터',
+	`cdate` DATETIME(6) NULL DEFAULT current_timestamp(6) COMMENT '생성일시',
+	`col1` VARCHAR(100) DEFAULT NULL AS (cast('yyy' as char(10) charset utf8mb4)) virtual COLLATE 'utf8_general_ci',
+	`col2` VARCHAR(100) DEFAULT NULL AS (cast('ttt' as char(100) charset utf8mb4)) virtual COLLATE 'utf8_general_ci',
+	PRIMARY KEY (`pkey`) USING BTREE,
+	INDEX `cmpid` (`cmpid`) USING BTREE,
+	INDEX `tcode` (`tcode`, `o_stime`) USING BTREE,
 	INDEX `codesvc` (`tcode`, `uri`) USING BTREE
-
-) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
+)
+COLLATE='utf8_general_ci'
+ENGINE=InnoDB
+ROW_FORMAT=COMPRESSED;
 
 CREATE TABLE IF NOT EXISTS `tinputdata` (
 	`pkey` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,

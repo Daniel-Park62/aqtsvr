@@ -17,9 +17,11 @@ const jobid = process.argv[2] ;
     process.exit(1);
   }
   const args = rows[0].jdata ;
+  args.jobId = jobid ;
   args.conn = conp ;
-  logger.info(args);
+  logger.info(JSON.stringify(args),{label:'dumpStart'});
 
+  args.logger = logger ;
   if ( !args.tcode) {
       logger.error( " 테스트코드를 지정하세요.(tcode)");
       process.exit(1);
