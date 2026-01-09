@@ -16,10 +16,10 @@ ${BDIR}/libaqtcom.so: aqt_comm.c
 	${CC} -shared -o $@ aqt_comm.o
 
 ${BDIR}/aqt_rnsend2: aqt_rnsend2.c
-	${CC} ${CFLAGS} -o $@ $? -D_TMAX_MTLIB -pthread ${LDLIBS} -L${TMAXDIR}/lib64 -lmariadb -lclithr 
+	${CC} ${CFLAGS} -o $@ $? -D_TMAX_MTLIB -pthread ${LDLIBS} -L${TMAXDIR}/lib64 -lcli 
 
 ${BDIR}/aqt_sendM2: aqt_sendM2.c
-	${CC} ${CFLAGS} -o $@ $? -D_TMAX_MTLIB -pthread ${LDLIBS} -L${TMAXDIR}/lib64 -lmariadb -lclithr
+	${CC} ${CFLAGS} -o $@ $? -D_TMAX_MTLIB -pthread ${LDLIBS} -L${TMAXDIR}/lib64 -lcli
 
 ${BDIR}/aqt_sendS: aqt_sendS.c
 	${CC} ${CFLAGS} -o $@ $? ${LDLIBS}
@@ -31,13 +31,13 @@ ${BDIR}/aqt_request: aqt_request.c
 	${CC} ${CFLAGS} -o $@ $? ${LDLIBS}
 
 ${BDIR}/aqt_sendM: aqt_sendM.c
-	${CC} ${CFLAGS} -o $@ $? ${LDLIBS} -L${TMAXDIR}/lib64 -lmariadb -lcli
+	${CC} ${CFLAGS} -o $@ $? ${LDLIBS} -L${TMAXDIR}/lib64 -lcli
 
 ${BDIR}/aqt_sendM_new: aqt_sendM_new.c
-	${CC} ${CFLAGS} -o $@ $? -D_TMAX_MTLIB  -pthread -L${MARIADB_HOME}/lib -L${TMAXDIR}/lib64  -lmariadb -lclithr
+	${CC} ${CFLAGS} -o $@ $? -D_TMAX_MTLIB -pthread  ${LDLIBS} -L${TMAXDIR}/lib64  -lcli
 
 ${BDIR}/aqt_reqsub: aqt_reqsub.c 
-	${CC} ${CFLAGS} -o $@ $? ${LDLIBS} -L${TMAXDIR}/lib64 -lmariadb -lcli
+	${CC} ${CFLAGS} -o $@ $? ${LDLIBS} -L${TMAXDIR}/lib64 -lcli
 
 aqt_dbpool.o: aqt_dbpool.c 
 	${CC} ${CFLAGS} -c $? ${LDLIBS}

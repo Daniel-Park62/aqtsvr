@@ -25,19 +25,6 @@ AQT recv mq & tpcall
 
 #include "aqt2.h"
 
-#define MAXLN2M 1000000
-
-#define LOGERROR(...)                                         \
-  do                                                          \
-  {                                                           \
-    LOGprint(stderr, 'E', __func__, __LINE__, ##__VA_ARGS__); \
-  } while (0)
-#define LOGINFO(...)                                          \
-  do                                                          \
-  {                                                           \
-    LOGprint(stdout, 'I', __func__, __LINE__, ##__VA_ARGS__); \
-  } while (0)
-
 static TPSTART_T *_tpinfo;
 
 static struct sigaction act;
@@ -65,7 +52,6 @@ static int _mtype = 2;
 
 static void Closed(void);
 static void _Signal_Handler(int sig);
-static struct timespec *getStrdate(char *, const int);
 static int connectDB();
 static void closeDB();
 static int _Init(int, char **);
@@ -75,34 +61,6 @@ static int update_db_fail(unsigned long, char *, long, char *stime, char *rtime,
 static int init_context(char *conn_label);
 static void find_context(char *);
 static int set_context(void);
-
-static int LOGprint(FILE *fp_log, char ltype, const char *func, int line_no, const char *fmt, ...)
-{
-  va_list ap;
-  int sz = 0;
-  struct timespec tv;
-  struct tm tm1;
-  char date_info[256];
-  char src_info[256];
-  char prt_info[1024];
-
-  clock_gettime(CLOCK_REALTIME, &tv);
-  localtime_r(&tv.tv_sec, &tm1);
-
-  va_start(ap, fmt);
-
-  snprintf(date_info, sizeof(date_info) - 1, "[%c] %04d%02d%02d:%02d%02d%02d%06ld",
-           ltype, 1900 + tm1.tm_year, tm1.tm_mon + 1, tm1.tm_mday,
-           tm1.tm_hour, tm1.tm_min, tm1.tm_sec, tv.tv_nsec / 1000);
-
-  snprintf(src_info, sizeof(src_info) - 1, "%s (%d)", func, line_no);
-  vsprintf(prt_info, fmt, ap);
-  sz += fprintf(fp_log, "%s:%-25.25s: %s\n", date_info, src_info, prt_info);
-  va_end(ap);
-  fflush(fp_log);
-
-  return sz;
-}
 
 void _Signal_Handler(int sig)
 {
@@ -150,22 +108,6 @@ int _Init(int argc, char *argv[])
   LOGINFO("** %s START TPCALL  [%s][%d]",__FILE__, _conn_label,msgkey);
 
   return (0);
-}
-
-struct timespec *getStrdate(char *str, const int len)
-{
-  static struct timespec tv;
-  struct tm tm1;
-  char cTmp[21] = {
-      0,
-  };
-  clock_gettime(CLOCK_REALTIME, &tv);
-  localtime_r(&tv.tv_sec, &tm1);
-  snprintf(cTmp, 21, "%04d%02d%02d%02d%02d%02d%06ld",
-           1900 + tm1.tm_year, tm1.tm_mon + 1, tm1.tm_mday,
-           tm1.tm_hour, tm1.tm_min, tm1.tm_sec, tv.tv_nsec / 1000);
-  memcpy(str, cTmp, len > 21 ? 21 : len);
-  return (&tv);
 }
 
 int connectDB()
@@ -346,7 +288,7 @@ static int set_context() {
   }
 
   snprintf(cquery, sizeof(cquery),
-           "SELECT * from (SELECT thost, thost2 FROM thostmap WHERE tcode in ('%%','%s') order by thost,tcode desc) a group by thost "
+           "SELECT * from (SELECT thost FROM thostmap WHERE tcode in ('%%','%s') order by thost,tcode desc) a group by thost "
            , _test_code);
 
   if (mysql_query(conn, cquery))
@@ -361,7 +303,7 @@ static int set_context() {
   icLen = 1;
   while ( (row = mysql_fetch_row(result)) ) {
     strcpy(thost[icLen],row[0]);
-    ctx[icLen] = init_context(row[1]) ;
+    ctx[icLen] = init_context(row[0]) ;
     icLen++ ;
   }
 

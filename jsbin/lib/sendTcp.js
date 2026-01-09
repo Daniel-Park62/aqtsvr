@@ -38,7 +38,7 @@ module.exports = function (param) {
     })
     .catch(err => console.log(PGNM, err));
   con.getConnection().then(con2 => {
-    const qstream = con2.queryStream("SELECT t.tcode, t.pkey,o_stime, if( ifnull(m.thost2,IFNULL(c.thost,''))>'',ifnull(m.thost2,c.thost) ,dstip) dstip, if(ifnull(m.tport2,IFNULL(c.tport,0))>0, ifnull(m.tport2,c.tport), dstport) dstport" +
+    const qstream = con2.queryStream("SELECT t.tcode, t.pkey,o_stime, if( ifnull(m.thost,IFNULL(c.thost,''))>'',ifnull(m.thost,c.thost) ,dstip) dstip, if(ifnull(m.tport,IFNULL(c.tport,0))>0, ifnull(m.tport,c.tport), dstport) dstport" +
       ",uri,method,sdata FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
       "where t.tcode = ? " + condi + " order by o_stime  " + vlimit, [param.tcode]);
 

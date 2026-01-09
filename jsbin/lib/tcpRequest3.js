@@ -12,6 +12,7 @@ let con;
   // console.log(threadId,"db connected") ;
   process.on('SIGTERM', con.end);
   process.send({ ready: 1 });
+  setInterval(()=>{con.query('select 1 ')},300*1000) ;
 })();
 
 const param = JSON.parse(process.argv[2]) ;
@@ -28,9 +29,9 @@ process.on('message', async (pkey) => {
   }
 
   mybns = checkCon(mybns) ;
-  con.query("SELECT t.tcode, t.pkey,o_stime,c.appid, if( ifnull(m.thost2,IFNULL(c.thost,''))>'',ifnull(m.thost2,c.thost) ,dstip) dstip," +
-    " if(ifnull(m.tport2,IFNULL(c.tport,0))>0, ifnull(m.tport2,c.tport), dstport) dstport,uri,sdata, slen " +
-    "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
+  con.query("SELECT t.tcode, t.pkey,o_stime,c.appid, if( ifnull(m.thost,IFNULL(c.thost,''))>'',ifnull(m.thost,c.thost) ,dstip) dstip," +
+    " if(ifnull(m.tport,IFNULL(c.tport,0))>0, ifnull(m.tport,c.tport), dstport) dstport,uri,sdata, slen " +
+    "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.appid = m.appid ) " +
     "where t.pkey = ? ", [pkey])
     .then(rdata => dataHandle(rdata[0]))
     .catch(err => {

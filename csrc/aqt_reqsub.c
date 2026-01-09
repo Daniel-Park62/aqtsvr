@@ -107,8 +107,7 @@ int connectDB()
     LOGERROR("mysql init error");
     return (-1);
   }
-  my_bool reconnect= 1; /* enable reconnect */
-  mysql_optionsv(conn, MYSQL_OPT_RECONNECT, (void *)&reconnect);
+
   if ((mysql_real_connect(conn, DBHOST, DBUSER, DBPASS, DBNAME, DBPORT, DBSOCKET, 0)) == NULL)
   {
     LOGERROR("DB connect error : %s", mysql_error(conn));
@@ -231,7 +230,6 @@ int main(int argc, char *argv[])
       continue ;
     }
 
-
     rlen = 0;
 
     stv = *getStrdate(c_sttime, 20);
@@ -244,8 +242,8 @@ int main(int argc, char *argv[])
       chg_buff((TR_REC *)tux_sndbuf, (TR_REC *)row[3], slen) ;
      */
 
-    strcpy(tux_sndbuf, row[3]);
-    slen = strnlen((char *)tux_sndbuf,MAXLN2M);
+//    slen = strnlen((char *)tux_sndbuf,MAXLN2M);
+    memcpy(tux_sndbuf, row[3],slen);
 
         // meritz
     memmove(tux_sndbuf+104, c_sttime+8,9);
@@ -339,7 +337,7 @@ static int update_db(unsigned long pkey, char *rcvdata, long rlen, char *stime, 
     ilen = (rlen > MAXLN2M ? MAXLN2M : rlen);
     mysql_real_escape_string(conn, cbuf, rcvdata, ilen);
   }
-
+  mysql_ping(conn);
   ilen = snprintf(cquery, MAXLN2M + MAXLN2M / 2,
                   "UPDATE ttcppacket SET rdata = '%s' "
                   ", stime = STR_TO_DATE('%s', '%%Y%%m%%d%%H%%i%%S%%f')"

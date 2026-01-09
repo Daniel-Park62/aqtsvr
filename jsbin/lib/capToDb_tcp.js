@@ -14,11 +14,9 @@ let icnt = 0;
 module.exports = function (args) {
     logger = args.logger.child({label:'catToDb_tcp'}) ;
 
-    process.on('SIGTERM', endprog);
-
     con = args.conn;
     const patt1 = new RegExp(args.dstip);
-    const patt2 = new RegExp(args.dstport.length > 0 ? args.dstport : '.');
+    const patt2 = new RegExp(args.dstport ? args.dstport.toString() : '.');
     const myMap = new Map();
     const myMap_s = new Map();
     const { spawn } = require('child_process');
@@ -134,7 +132,8 @@ module.exports = function (args) {
                     };
                     let sky = ky;
                     if (datalen > 10 && datas.sdata.readUInt16BE() == 0x1234) ajp_parser(datas);
-                    if (args.norcv && datas.slen <= datas.sdata.length) {
+                    // console.log('chk',args.immd,datas.slen,datas.sdata.length);
+                    if ((args.norcv || args?.immd ) && datas.slen <= datas.sdata.length) {
                         insert_data(datas);
                         return;
                     }
@@ -210,7 +209,7 @@ module.exports = function (args) {
             if (rcd > 399) emsg = datas.rdata.subarray(9, 10 + datas.rdata.readUInt16BE(7)).toString();
         }
 
-        return con.query("INSERT INTO TLOADDATA \
+        return con.query("INSERT INTO ttcppacket \
 			(TCODE, O_STIME,STIME,RTIME, SRCIP,SRCPORT,DSTIP,DSTPORT,PROTO, METHOD,URI,SEQNO,ACKNO,slen,rlen,SDATA,RDATA,rcode,errinfo) \
 			values \
 			( ?,from_unixtime(?),from_unixtime(?),from_unixtime(?),?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?) ;",
@@ -218,7 +217,7 @@ module.exports = function (args) {
             datas.method, datas.uri, datas.seqno, datas.ackno, datas.slen,
             datas.rdata.length, datas.sdata, datas.rdata, rcd, emsg])
             .then(row => {
-                if (args?.imm == 1) write_rec(dt.insertId) ;
+                if (args?.immd == 1) write_rec(row.insertId) ;
                 icnt++;
                 icnt % 1000 == 0 && logger.info(PGNM + "** insert ok %d 건", icnt);
             })

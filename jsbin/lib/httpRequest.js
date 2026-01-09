@@ -15,6 +15,8 @@ let con;
   // console.log(threadId,"db connected") ;
   process.on('SIGTERM', con.end);
   parentPort.postMessage({ ready: 1 });
+
+  setInterval(()=>{con.query('select 1 ')},300*1000) ;
 })();
 const ckMap = new Map();
 
@@ -32,9 +34,9 @@ parentPort.on('message', (pkey) => {
     console.error(cdate(),err) ;
     con.reset() ;
   }) ;
-  con.query("SELECT t.tcode,t.appid, t.pkey,o_stime, if( ifnull(m.thost2,IFNULL(c.thost,''))>'',ifnull(m.thost2,c.thost) ,dstip) dstip," +
-    " if(ifnull(m.tport2,IFNULL(c.tport,0))>0, ifnull(m.tport2,c.tport), dstport) dstport,uri,method,sdata, rlen , ifnull(c.tenv,'') encval " +
-    "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
+  con.query("SELECT t.tcode,t.appid, t.pkey,o_stime, if( ifnull(m.thost,IFNULL(c.thost,''))>'',ifnull(m.thost,c.thost) ,dstip) dstip," +
+    " if(ifnull(m.tport,IFNULL(c.tport,0))>0, ifnull(m.tport,c.tport), dstport) dstport,uri,method,sdata, rlen , ifnull(c.tenv,'') encval " +
+    "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.appid = m.appid ) " +
     "where t.pkey = ? ", [pkey])
     .then(rdata => dataHandle(rdata[0]))
     .catch(err => {

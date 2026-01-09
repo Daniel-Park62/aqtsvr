@@ -31,7 +31,7 @@ module.exports = function (param) {
     .catch(err => console.log(PGNM, qstr, err));
 
   const qstream = con.queryStream("SELECT t.pkey,o_stime " +
-    "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
+    "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.appid = m.appid ) " +
     "where t.tcode = ?  order by o_stime limit 100 " , [param.tcode]);
 
   qstream.on("error", err => {

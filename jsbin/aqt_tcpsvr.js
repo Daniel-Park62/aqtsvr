@@ -16,12 +16,12 @@ server.listen(port, function() {
 // socket dedicated to that client.
 server.on('connection', function(socket) {
     console.log('A new connection has been established.');
-    socket.write('0056' + '0'.repeat(56)) ;
 
     // The server can also receive data from the client by reading from its socket.
     socket.on('data', function(chunk) {
         console.log("Data received from client:", chunk.toString());
 		socket.write('ok');
+		socket.write(chunk);
     });
 
     // When the client requests to end the TCP connection with the server, the server

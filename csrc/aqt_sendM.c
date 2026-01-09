@@ -119,7 +119,6 @@ int connectDB()
   }
 
   mysql_autocommit(conn, 0);
-
   return (0);
 }
 

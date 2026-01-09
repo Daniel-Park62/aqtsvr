@@ -52,12 +52,15 @@ INSERT INTO taqtuser
 	VALUES ('%', 'testadmin', 'AQT admin', password('aqtadmin'), 1, '.*') ;
 	
 CREATE TABLE IF NOT EXISTS `tapphosts` (
-  `pkey` int(11) NOT NULL AUTO_INCREMENT,
-  `appid` varchar(50) NOT NULL,
-  `thost` varchar(50) NOT NULL,
-  `tport` int(10) unsigned NOT NULL DEFAULT 0,
-  PRIMARY KEY (`pkey`)
-) ENGINE=InnoDB COMMENT='application 호스트등록';
+	`pkey` INT(11) NOT NULL AUTO_INCREMENT,
+	`appid` VARCHAR(50) NOT NULL COLLATE 'utf8_general_ci',
+	`thost` VARCHAR(50) NOT NULL COLLATE 'utf8_general_ci',
+	`tport` INT(10) UNSIGNED NOT NULL DEFAULT '0',
+	PRIMARY KEY (`pkey`) USING BTREE
+)
+COMMENT='appid 별 host,port 정보 ( 데이터로드시 참고 )'
+COLLATE='utf8_general_ci'
+ENGINE=InnoDB ;
 
 CREATE TABLE IF NOT EXISTS `tapplication` (
   `appid` varchar(50) NOT NULL,
@@ -149,15 +152,16 @@ ENGINE=InnoDB
 ;
 
 CREATE TABLE IF NOT EXISTS `thostmap` (
-  `pkey` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `tcode` varchar(50) NOT NULL DEFAULT '',
-  `thost` varchar(50) DEFAULT NULL,
-  `tport` int(11) unsigned DEFAULT NULL,
-  `thost2` varchar(50) DEFAULT NULL,
-  `tport2` int(11) unsigned DEFAULT NULL,
-  PRIMARY KEY (`pkey`),
-  KEY `tcode` (`tcode`) USING BTREE
-) ENGINE=InnoDB ;
+	`tcode` VARCHAR(50) NOT NULL DEFAULT '' COLLATE 'utf8_general_ci',
+	`appid` VARCHAR(50) NOT NULL DEFAULT '' COLLATE 'utf8_general_ci',
+	`thost` VARCHAR(50) NULL DEFAULT NULL COLLATE 'utf8_general_ci',
+	`tport` INT(11) UNSIGNED NULL DEFAULT NULL,
+	PRIMARY KEY (`tcode`, `appid`) USING BTREE
+)
+COMMENT='테스트 수행시 대상 host,port 를 정의'
+COLLATE='utf8_general_ci'
+ENGINE=InnoDB
+;
 
 CREATE TABLE IF NOT EXISTS `tlevel` (
   `lvl` char(1) NOT NULL DEFAULT '0',
@@ -509,10 +513,10 @@ main: BEGIN
 	
 	UPDATE texecjob SET resultStat = 2, msg = v_msg , enddt = NOW() WHERE pkey = v_pkey ;
 	
-	INSERT INTO thostmap ( tcode, thost, tport, thost2, tport2 ) 
-	SELECT @DST, thost, tport, thost2, tport2 FROM thostmap s
+	INSERT INTO thostmap ( tcode, appid, thost, tport ) 
+	SELECT @DST, appid, thost, tport FROM thostmap s
 	WHERE tcode = @SRC 
-	  AND NOT EXISTS (SELECT 1 FROM thostmap WHERE tcode = @DST AND thost = s.thost AND tport = s.tport) ;
+	  AND NOT EXISTS (SELECT 1 FROM thostmap WHERE tcode = @DST AND appid = s.appid ) ;
 	
 	SELECT v_msg ;
 	

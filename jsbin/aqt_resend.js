@@ -1,8 +1,8 @@
 "use strict";
 const moment = require('moment');
 const cdate = () => "[Resend] " + moment().format("MM/DD HH:mm:ss.SSS :");
-const logf = require('./lib/logfilec') ;
-logf(moment().format("YYYYMMDDHHmm") + "rs.log") ;
+// const logf = require('./lib/logfilec') ;
+// logf(moment().format("YYYYMMDDHHmm") + "rs.log") ;
 
 const MAX_RESP_LEN = 1024 * 32;
 const Dsec = /^\d+$/.test(process.argv[2]) ? process.argv[2] * 1 : 5;
@@ -19,7 +19,6 @@ async function main() {
   console.log("%s * start Resend check (%d 초 단위)", cdate(), Dsec);
   // const sendhttp = require('./lib/sendHttp') ;
   setInterval(() => {
-
     const qstream = con.queryStream("SELECT a.pkey, t.proto FROM trequest a join ttcppacket t on(a.pkey = t.pkey) order by a.reqDt  ");
     qstream.on("error", err => {
       console.log(cdate(), err); //if error

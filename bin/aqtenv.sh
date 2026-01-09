@@ -9,4 +9,5 @@ export AQTDBIP=172.22.160.1
 # AqtTimeOut=30000  기본 30초 설정 , tcp or http timeout값 
 [[ ${PATH} =~ $AQTHOME/bin ]] || export PATH=${PATH}:${AQTHOME}/bin
 
-echo $AQTHOME $AQTLOG
+echo "AQTHOME=$AQTHOME AQTLOG=$AQTLOG"
+echo "AQTDBIP=${AQTDBIP}"

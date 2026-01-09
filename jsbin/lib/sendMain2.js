@@ -62,7 +62,7 @@ module.exports = function (param) {
   let sv_time ;
   let delay = 0;
   const qstream = con.queryStream("SELECT t.pkey,t.o_stime, t.srcip " +
-    "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.dstip = m.thost and t.dstport = m.tport) " +
+    "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.appid = m.appid ) " +
     "where t.tcode = ? " + condi + orderby + vlimit, [param.tcode]);
 
   qstream.on("error", err => {
