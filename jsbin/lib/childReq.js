@@ -3,27 +3,25 @@
 */
 
 "use strict";
-
-const cdate = () => "[sendMain3] " + (new Date()).toLocaleString('lt').substring(5);
-
 const { fork } = require('child_process');
 
+const aqttimeout = Number(process.env.AqtTimeOut) || 30000;
 let con = null;
 let cnt = 0;
 let startt;
 const childs = new Array();
-
-module.exports = function () {
-  function nsleep(ms) {
+let logger ;
+module.exports = {
+  nsleep(ms) {
     const endt = process.hrtime.bigint() + BigInt(ms * 1_000_000);
     while (process.hrtime.bigint() < endt) { };
-  }
+  },
 
-  function sleep(ms) {
+  sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
-  }
+  },
 
-  async function child_send(sdata) {
+  child_send(sdata) {
     while (childs.length > 0) {
       const ix = childs.findIndex(t => t.busy == 0);
       if (ix > -1) {
@@ -36,12 +34,15 @@ module.exports = function () {
           break;
         }
       }
-      await sleep(0);
+      sleep(0);
     }
+  },
 
-    function childs_start(param) {
+    async childs_start(param) {
+      logger = param.logger.child({label:'childReq'}) ; 
+      con = param.conn ;
       let ucnt = 0, ecnt = 0, sv_cnt = 0;
-
+//      logger.info(`tnum : ${param.tnum}`) ;
       let TYPEF;
       // if (process.env.AQTTYPE === 'TCP')
       if (param.aqttype === 'TCP')
@@ -62,11 +63,11 @@ module.exports = function () {
 
             // console.log(PGNM, i, `Thread exiting, ${childs.length} running...`);
             if (childs.length == 0) {
-              console.log(cdate(), 'child all ended !!')
+              logger.info( 'child all ended !!')
             }
           });
         wkthread.on('error', async (err) => {
-          console.log(cdate(), "child error ", err);
+          logger.info ("child error ", err);
           if (param.hasOwnProperty('jobId'))
             await con.query("UPDATE texecjob x,texecing y set resultstat = 3, x.tcnt= y.tcnt,x.ccnt=y.ccnt,x.ecnt=y.ccnt," +
               "msg = concat(msg,now(),':',y.ccnt,'건 수행\r\n' ), endDt = now() where x.pkey = ? and x.pkey = y.pkey",
@@ -88,21 +89,21 @@ module.exports = function () {
           }
         });
 
-        childs.push({ id: wkthread.threadId, wkthread });
+        childs.push({ id: wkthread.threadId, wkthread }) ;
 
       }
-      console.log(cdate(), "childs:", childs.length, wdata);
+      logger.info (`childs: ${childs.length} start`);
 
-    }
+    },
 
-    function childs_end() {
+    childs_end() {
       const ival = setInterval(async () => {
         for (const v of childs) { if (!v.busy) await v.wkthread.kill() }
         // console.log(PGNM, "childs :", childs.length);
         if (childs.length == 0) {
           clearInterval(ival);
           if (param.loop > 0) {
-            console.log(cdate(), "# Number of iterations remaining :", param.loop);
+            logger.info( "# Number of iterations remaining :", param.loop);
           } else {
             if (param.hasOwnProperty('jobId'))
               await con.query("UPDATE texecjob x,texecing y set resultstat = 2, x.tcnt= y.tcnt,x.ccnt=y.ccnt,x.ecnt=y.ccnt," +
@@ -112,7 +113,7 @@ module.exports = function () {
               await con.query('call sp_summary(?)', [param.tcode]);
             con.end();
             conR.end();
-            console.log(cdate(), `${cnt} read`);
+            logger.info (`${cnt} read`);
             process.exit(0);
           }
         }
@@ -120,4 +121,3 @@ module.exports = function () {
 
     }
   }
-}
