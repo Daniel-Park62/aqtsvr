@@ -1,19 +1,17 @@
-// Include Nodejs' net module.
+// tcp 기본서버 
 const Net = require('net');
-// The port on which the server is listening.
-const port = process.argv[2] ?? 10002;
+const mdb = require('../db/db_con1');
 
-// Use net.createServer() in your code. This is just for illustration purpose.
-// Create a new TCP server.
+const port = process.argv[2] ?? 10002;
+const pgno = process.argv[3] ?? 0;
+
 const server = new Net.Server();
-// The server listens to a socket for a client to make a connection request.
-// Think of a socket as an end point.
+
 server.listen(port, function() {
-    console.log(`Server listening for connection requests on socket localhost:${port}`);
+    console.log(`Server listening for connection requests on Port:${port}`);
+    if (pgno) update_status(pgno) ;
 });
 
-// When a client requests a connection with the server, the server creates a new
-// socket dedicated to that client.
 server.on('connection', function(socket) {
     console.log('A new connection has been established.');
 
@@ -35,3 +33,18 @@ server.on('connection', function(socket) {
         console.log(`Error: ${err}`);
     });
 });
+
+async function update_status(pgno) {
+    const con = await mdb ;
+    con.query(`update tmocksvr set status=1 where pkey=?`,pgno) ;
+}
+async function endfunc() {
+    if (pgno) {
+    const con = await mdb ;
+    con.query(`update tmocksvr set status=0 where pkey=?`,pgno)
+    .catch( e => console.log(e.message)) ;
+    }
+    process.exit(0);
+}
+process.on('SIGINT', endfunc);
+process.on('SIGTERM', endfunc);

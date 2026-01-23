@@ -208,8 +208,6 @@ function dataHandle(rdata) {
 
   }
 
-  //  client.write(rdata.sdata);
-  console.info('recv ', rdata.sdata);
   writeData(client, rdata.sdata);
 
   if (rdata.appid == 'VVZ' || rdata.appid == 'MKP' || rdata.appid == 'JDZ' || rdata.appid == 'EZZ')

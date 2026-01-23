@@ -1,4 +1,4 @@
-const crypto = require('./aqt_crypto');
+const crypto = require('../aqt_crypto');
 const Net = require('net');
 const moment = require('moment') ;
 const BC_KEY = '81C05AED12756668';

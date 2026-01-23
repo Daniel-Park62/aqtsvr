@@ -217,7 +217,7 @@ module.exports = function (args) {
             datas.method, datas.uri, datas.seqno, datas.ackno, datas.slen,
             datas.rdata.length, datas.sdata, datas.rdata, rcd, emsg])
             .then(row => {
-                if (args?.immd == 1) write_rec(row.insertId) ;
+                if (args?.immd == 1) args.sendf(row.insertId) ;
                 icnt++;
                 icnt % 1000 == 0 && logger.info(PGNM + "** insert ok %d 건", icnt);
             })
