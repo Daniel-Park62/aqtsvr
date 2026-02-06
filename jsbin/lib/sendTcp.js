@@ -79,7 +79,7 @@ module.exports = function (param) {
         console.log(PGNM, param.tcode, "*** read ended ***");
         if (!dbskip) {
           con.query('call sp_summary(?)', [param.tcode]);
-          con.query("UPDATE texecjob set resultstat = 2, msg = concat(msg, now(),':',?,'\r\n' ), endDt = now() where pkey = ?"
+          con.query("UPDATE texecjob set resultstat = 9, msg = concat(msg, now(),':',?,'\r\n' ), endDt = now() where pkey = ?"
             , [" 총 " + cnt + " 건", param.jobkey]);
         }
 

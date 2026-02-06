@@ -241,7 +241,7 @@ module.exports = function (args) {
         }
         myMap.clear();
         if (args.jobId) {
-            await con.query("UPDATE texecjob set resultstat = 2, msg = concat(msg,now(),':',?,'\r\n' ), endDt = now() where pkey = ? ",
+            await con.query("UPDATE texecjob set resultstat = 9, msg = concat(msg,now(),':',?,'\r\n' ), endDt = now() where pkey = ? ",
                 [icnt + " 건 Import", args.jobId]);
         }
         console.log("%s *** Import completed (%d 건)***", PGNM, icnt);

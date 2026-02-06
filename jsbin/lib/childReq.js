@@ -106,7 +106,7 @@ module.exports = {
             logger.info( "# Number of iterations remaining :", param.loop);
           } else {
             if (param.hasOwnProperty('jobId'))
-              await con.query("UPDATE texecjob x,texecing y set resultstat = 2, x.tcnt= y.tcnt,x.ccnt=y.ccnt,x.ecnt=y.ccnt," +
+              await con.query("UPDATE texecjob x,texecing y set resultstat = 9, x.tcnt= y.tcnt,x.ccnt=y.ccnt,x.ecnt=y.ccnt," +
                 "msg = concat(msg,now(),':',y.ccnt,'건 수행\r\n' ), endDt = now() where x.pkey = ? and x.pkey = y.pkey",
                 [param.jobId]);
             if (!dbskip)

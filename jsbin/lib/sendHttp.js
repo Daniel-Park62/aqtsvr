@@ -82,7 +82,7 @@ module.exports =  function (param) {
             await con.query('call sp_summary(?)', [param.tcode]);
 
           if (param.hasOwnProperty('jobId'))
-            await con.query("UPDATE texecjob set resultstat = 2, msg = concat(msg,now(),':',?,'\r\n' ), endDt = now() where pkey = ? ",
+            await con.query("UPDATE texecjob set resultstat = 9, msg = concat(msg,now(),':',?,'\r\n' ), endDt = now() where pkey = ? ",
               [cnt + " 건 수행", param.jobId]);
           console.log( `${cnt} read, ${ucnt} update`)
           process.exit(0);

@@ -5,7 +5,7 @@
 IFS="@" read pkey tcode tnum intm repnum dbskip exectype etc limits <<< \
  `$AQTHOME/bin/aqtconn "select concat(pkey,'@', tcode,'@', tnum,'@',reqnum,'@',repnum,\
  '@',dbskip,'@', exectype,'@',ifnull(etc,' '),'@',trim(limits)) \
-                 from texecjob WHERE pkey = $1  and jobkind=9 and resultstat=1 " `
+                 from texecjob WHERE pkey = $1  and jobkind=9 and resultstat=2 " `
 if [ -z $pkey ]; then exit ; fi
 echo "$pkey $tcode $tnum $intm $dbskip $exectype $etc $limits"
 

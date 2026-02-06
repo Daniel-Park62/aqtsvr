@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS `texecjob` (
 	`tport` INT(10) UNSIGNED NOT NULL DEFAULT '0',
 	`reqstartDt` DATETIME NOT NULL DEFAULT current_timestamp() COMMENT '작업시작요청일시',
 	`exectype` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0' COMMENT '0.즉시실행  1.송신시간에 맞추어',
-	`resultstat` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0' COMMENT '0. 미실행 1.수행중  2.완료 3.실행오류',
+	`resultstat` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '0' COMMENT '0. 작성중(등록) 1.실행대기 2.수행중  3.실행오류  9.수행완료',
 	`reqnum` FLOAT(10,3) UNSIGNED NOT NULL DEFAULT '0.000' COMMENT '(송신간격 or uri별건수)',
 	`repnum` INT(10) UNSIGNED NOT NULL DEFAULT '1' COMMENT '반복횟수',
 	`tcnt` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '대상건수',
@@ -159,6 +159,23 @@ CREATE TABLE IF NOT EXISTS `thostmap` (
 	PRIMARY KEY (`tcode`, `appid`) USING BTREE
 )
 COMMENT='테스트 수행시 대상 host,port 를 정의'
+COLLATE='utf8_general_ci'
+ENGINE=InnoDB
+;
+
+CREATE TABLE IF NOT EXISTS `tmocksvr` (
+	`pkey` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+	`svrnm` VARCHAR(50) NOT NULL COLLATE 'utf8_general_ci',
+	`svrkind` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0' COMMENT '0.tcp 1.http',
+	`status` TINYINT(4) UNSIGNED NOT NULL DEFAULT '0' COMMENT '0.정지, 1.대기,2.실핼중 3.오류',
+	`procid` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '실행중 pid',
+	`reqstop` TINYINT(3) UNSIGNED NOT NULL DEFAULT '0' COMMENT '1. 작업중지요청',
+	`portno` SMALLINT(6) UNSIGNED NOT NULL DEFAULT '0' COMMENT '대기 port',
+	`allowip` VARCHAR(20) NOT NULL DEFAULT '' COMMENT ',로 분리 지정(빈칸이면 모두허용)' COLLATE 'utf8_general_ci',
+	`srcnm` VARCHAR(80) NOT NULL DEFAULT '' COMMENT '서버소스' COLLATE 'utf8_general_ci',
+	PRIMARY KEY (`pkey`) USING BTREE
+)
+COMMENT='테스트를 위한 모의서버를 설정, 시작/종료 처리한다'
 COLLATE='utf8_general_ci'
 ENGINE=InnoDB
 ;

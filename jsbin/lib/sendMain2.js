@@ -126,7 +126,7 @@ module.exports = function (param) {
         } else {
           console.log("** 작업종료처리 **")
           if (param.hasOwnProperty('jobId'))
-            await con.query("UPDATE texecjob set resultstat = 2, msg = concat(ifnull(msg,''),now(),': ',?,'\r\n' ), endDt = now() where pkey = ? ",
+            await con.query("UPDATE texecjob set resultstat = 9, msg = concat(ifnull(msg,''),now(),': ',?,'\r\n' ), endDt = now() where pkey = ? ",
           [cnt + " 건 수행", param.jobId]);
           console.log(cdate(), `${cnt} read, ${ucnt} update, ${ecnt} error`) ;
           if (!dbskip)

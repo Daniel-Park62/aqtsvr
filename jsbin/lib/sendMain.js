@@ -85,7 +85,7 @@ module.exports = async function (param) {
         module.exports(param);
       } else {
         if (param.hasOwnProperty('jobId'))
-          await con.query("UPDATE texecjob set resultstat = 2, tcnt= ?,ccnt=?,ecnt=?," + 
+          await con.query("UPDATE texecjob set resultstat = 9, tcnt= ?,ccnt=?,ecnt=?," + 
                           "msg = concat(msg,now(),':',?,'\r\n' ), endDt = now() where pkey = ? ",
         [tcnt, cnt, ecnt, cnt + " 건 수행완료.", param.jobId]);
         if (!dbskip)
