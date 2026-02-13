@@ -58,7 +58,7 @@ function start_f2 {
   LOGF1="${AQTLOG}/"`date +%Y%m%d`"_$$.jslog"
   LOGF2="${AQTLOG}/"`date +%Y%m%d`rs"_$$.jslog"
 
-  nohup node aqt_execJob.js >$LOGF1 2>&1 &
+  nohup ./aqt_execMstjs.sh >$LOGF1 2>&1 &
   nohup node aqt_resend.js >$LOGF2 2>&1 &
 
 }

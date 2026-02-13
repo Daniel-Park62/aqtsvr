@@ -437,7 +437,7 @@ void Closed(int x)
   {
     char query[2048] ;
     LOGINFO("** UPDATE texecjob [%ld], Count[%d] **", execkey, _iTotCnt);
-    sprintf(query, "UPDATE texecjob SET pidv=0, msg=concat('Count: ',format(%d,0)), resultstat=9, endDt=NOW() WHERE pkey=%ld", _iTotCnt, execkey);
+    sprintf(query, "UPDATE texecjob SET  msg=concat('Count: ',format(%d,0)), resultstat=9, endDt=NOW() WHERE pkey=%ld", _iTotCnt, execkey);
 
     if (mysql_real_query(conn, query, strlen(query)))
     {

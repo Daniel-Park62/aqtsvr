@@ -10,7 +10,7 @@ let args = JSON.parse(process.argv[3]) ;
 (async () => {
   const conp = await require('./db/db_con1') ;
   
-  const rows = await conp.query("select jdata from texecjson where pkey = ?",[jobid]) ;
+  const rows = await conp.query("select jdata from texecjob where pkey = ?",[jobid]) ;
   
   if (! rows ) {
     logger.error("dump에 필요한 정보가 없습니다.")
@@ -28,7 +28,7 @@ let args = JSON.parse(process.argv[3]) ;
       process.exit(1);
   }
 
-  if ( args.immd == 1 ) {
+  if ( args.immd >= 1 ) {
     const childs = require("./lib/childReq");
     await childs.childs_start(args) ;
     args.sendf = childs.child_send ;

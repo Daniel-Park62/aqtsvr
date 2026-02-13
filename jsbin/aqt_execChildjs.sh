@@ -14,7 +14,7 @@ do
 		[ ${#pkey} -lt 1 ] && break ; 
 		echo "$pkey " ;
 		$AQTHOME/bin/aqtconn "UPDATE texecjob SET resultstat = 2, startDt=NOW(), endDt=NULL WHERE pkey=$pkey; commit;" ;
-		(./aqt_execjob.sh $pkey; $0 $pkey) &  
+		(node ./aqt_execjob.js $pkey ; $0 $pkey) &  
 	done
 	sleep 3;
 done

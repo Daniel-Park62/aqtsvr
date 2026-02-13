@@ -84,11 +84,11 @@ CREATE TABLE IF NOT EXISTS `taqtprog` (
 COMMENT='테스트 전후 수행하는 프로세스 정의'
 COLLATE='utf8_general_ci'
 ENGINE=InnoDB;
-
+/* old resultstat '0. 미실행 1.수행중  2.완료 3.실행오류' , jobkind '1.패킷파일import 2.패킷캡쳐  3.패킷복제 9.테스트수행',*/
 CREATE TABLE IF NOT EXISTS `texecjob` (
 	`pkey` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'job id',
 	`ppkey` INT(10) UNSIGNED NOT NULL DEFAULT '0' COMMENT '선행 id',
-	`jobkind` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '9' COMMENT '1.패킷파일import 2.패킷캡쳐  3.패킷복제 9.테스트수행',
+	`jobkind` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '9' COMMENT '1.패킷파일import 2.실시간수집 8.실시간수행 9.테스트수행',
 	`tcode` VARCHAR(50) NOT NULL DEFAULT '' COLLATE 'utf8_general_ci',
 	`tdesc` VARCHAR(80) NOT NULL DEFAULT '' COMMENT '테스트설명' COLLATE 'utf8_general_ci',
 	`tnum` SMALLINT(5) UNSIGNED NOT NULL DEFAULT '10' COMMENT '쓰레드 수',

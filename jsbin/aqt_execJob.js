@@ -1,73 +1,59 @@
 "use strict";
 const { fork } = require('child_process');
 logger = require('./lib/logs/aqtLogger').child({label:'execJob'});
+if (process.argv.length < 3 ) {
+    logger.info(" Job Id 를 지정하세요.");
+    process.exit(1);
+}
+const jobid = process.argv[2] ;
+let childid ;
 (async () => {
-  let jcnt = 0 ;
   const con = await require('./db/db_con1');
+  logger.info( "* start Execute Job");
+  
   try {
-    logger.info( "* start Execute Job");
-    await con.query("UPDATE texecjob set resultstat = 3, endDt = now() where resultstat = 1; update texecing set reqkill='' where reqkill='1'; ") ;
+    const rows = await con.query("select pkey, jobkind, tcode, tnum,dbskip, exectype,etc,in_file, \
+                reqnum, repnum, limits, ifnull(msg,'') msg from texecjob \
+              WHERE pkey = ? AND resultstat = 2 ",[jobid] ) ;
+      if (rows.length == 0) return;
+      
+      await con.query("INSERT INTO texecing (pkey) values (?) on duplicate key update tcnt=1,ccnt=0,ecnt=0 ; ", [rows[0].pkey]) ;
+
+      if (rows[0].jobkind != 9)
+        dumpData(rows[0]);
+      else {
+        await sendData(rows[0]);
+      }
+
   } catch (err) {
-    logger.error( `UPDATE texecjob error-1: ${err.message}`) ;
+    logger.error( JSON.stringify(err) ) ;
   }
-
-  setInterval(async () => {
-    try {
-      con.query("select pkey, pidv from texecing where pidv > 0 and reqkill = '1' ")  
-      .then(row => {
-        if (row.length>0 ){
-          con.query("update texecing set reqkill='k' where pkey=?",[row[0].pkey]) ;
-          logger.info(`* kill : ${row[0].pidv}`);
-          process.kill(row[0].pidv);
-        }
-      });
-      const rows = await con.query("select pkey, jobkind, tcode, tnum,dbskip, exectype,etc,in_file, \
-                  reqnum, repnum, limits, ifnull(msg,'') msg from texecjob \
-                WHERE reqstartdt <= NOW() and resultstat=0 and jobkind in (2,9) and ppkey = 0 \
-                  AND TCODE in (select code from tmaster where pro != '3' and lvl != '0') order by reqstartdt LIMIT 1" ) ;
-        jcnt++ ;
-//        if (jcnt % 100 == 0) logger.info( "exec checking..", jcnt) ;
-        if (rows.length == 0) return;
-        
-        await con.query("INSERT INTO texecing (pkey) values (?) on duplicate key update tcnt=1,ccnt=0,ecnt=0 ; ", [rows[0].pkey]) ;
-        await con.query("UPDATE texecjob set resultstat = 1, startDt = now(), endDt = null where pkey = ?", [rows[0].pkey]);
-
-        if (rows[0].jobkind == 2)
-          dumpData(rows[0]);
-        else {
-          await sendData(rows[0]);
-        }
-
-    } catch (err) {
-      logger.error( JSON.stringify(err) ) ;
-    }
-
-  }, 2 * 1000);
+ 
 
   async function dumpData(row) {
-    const dumpData = fork('./aqt_dumpToDb',[row.pkey, JSON.stringify(row)] );
-    dumpData.on('error',(err) => logger.error(`fork error: ${err.message}`) ;
-    
+    childid = fork('./aqt_dumpToDb',[row.pkey, JSON.stringify(row)] );
+    childid.on('error',(err) => logger.error(`fork error: ${err.message}`) ) ;
   }
+
   async function sendData(row) {
 
-    return con.query("SELECT lvl,if(pro='1','HTTP',IF(pro='2','UDP','TCP')) pro FROM TMASTER WHERE CODE = ?", [row.tcode])
+    con.query("SELECT lvl,if(pro='1','HTTP',IF(pro='2','UDP','TCP')) pro FROM TMASTER WHERE CODE = ?", [row.tcode])
       .then( dat => {
         if (dat[0].lvl == '0') {
           logger.info( "Origin ID 는 테스트 불가합니다.");
           con.query("UPDATE texecjob set resultstat = 3, msg = concat(msg,now(),':Origin ID 는 테스트 불가합니다.\r\n', endDt = now() where pkey = ?", [row.pkey]);
           return;
         }
-//        const sendMain = require('./lib/sendMain');
-        const sendMain = fork('./lib/sendMain3');
-        logger.info( "child pid=> ", sendMain.pid);
-        sendMain.on('exit',()=>{logger.info("child end:",sendMain.pid)}) ;
+
+        childid = fork('./lib/sendMain3');
+        logger.info( "child pid=> ", childid.pid);
+        childid.on('exit',()=>{logger.info("child end:",childid.pid)}) ;
 
         let param = {
           tcode: row.tcode, cond: row.etc, tnum: row.tnum, aqttype: dat[0].pro, exectype: row.exectype
           , limit: row.limits, interval: row.reqnum, loop: row.repnum, dbskip: row.dbskip == '1', jobId: row.pkey
         };
-        sendMain.send(param) ;
+        childid.send(param) ;
       })
       .catch(err => {
         logger.info( err);
@@ -77,6 +63,7 @@ logger = require('./lib/logs/aqtLogger').child({label:'execJob'});
   function endprog() {
     logger.info( "## Exec job program End");
     if (con) con.end();
+    if (childid) childid.kill() ;
     process.exit(0)
   }
 
