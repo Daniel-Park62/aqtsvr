@@ -112,7 +112,6 @@ module.exports = {
             if (!dbskip)
               await con.query('call sp_summary(?)', [param.tcode]);
             con.end();
-            conR.end();
             logger.info (`${cnt} read`);
             process.exit(0);
           }

@@ -3,8 +3,8 @@
 */
 
 "use strict";
-
-const cdate = () => "[sendMain3] " + (new Date()).toLocaleString('lt').substring(5);
+const childs = require("./lib/childReq");
+const logger = require('./logs/aqtLogger').child({label:'sendMain3'});
 
 const MAX_RESP_LEN = 1024 * 32;
 
@@ -21,7 +21,7 @@ const threads = new Array();
 
 process.on('SIGTERM', () => {
   con.end(); conR.end();
-  console.log(cdate(), "stop process");
+   logger.info( "stop process");
   process.exit(0);
 });
 
@@ -50,8 +50,8 @@ async function main(param) {
     if (param.hasOwnProperty('jobId')) {
       con.query(" update texecing set tcnt = ?, ccnt = 0, ecnt= 0, pidv = ?,elaps=0 where pkey = ? ", [tcnt, process.pid, param.jobId]);
     }
-    console.log("%s Start 테스트id(%s) 작업수(%d) cond(%s) limit(%s) data건수(%d) pid(%d)"
-      , cdate(), param.tcode, param.tnum, condi, vlimit, tcnt, process.pid);
+    logger.info("Start 테스트id(%s) 작업수(%d) cond(%s) limit(%s) data건수(%d) pid(%d)"
+            , param.tcode, param.tnum, condi, vlimit, tcnt, process.pid);
 
     startt = performance.now();
     for await (const row of rows) {
@@ -65,13 +65,12 @@ async function main(param) {
       }
 
       if (delay) nsleep(delay);
-      // console.log("delay2:",delay) ;
 
       while (threads.length > 0) {
         const ix = threads.findIndex(t => t.busy == 0);
         if (ix > -1) {
           const th = threads.splice(ix, 1)[0];
-          // console.log(cdate(),'loop',th, cnt) ;
+          //  logger.info('loop',th, cnt) ;
           if (th) {
             threads.push(th);
             th.busy = 1;
@@ -87,11 +86,11 @@ async function main(param) {
 
     };
   }
-  console.log(cdate(), param.tcode, "Count:", cnt, "*Jobid:" + param?.jobId, "*** read ended ***");
+   logger.info( param.tcode, "Count:", cnt, "*Jobid:" + param?.jobId, "*** read ended ***");
 
   const ival = setInterval(async () => {
     for (const v of threads) { if (!v.busy) await v.wkthread.kill() }
-    // console.log(PGNM, "threads :", threads.length);
+    
     if (threads.length == 0) {
       clearInterval(ival);
       if (param.hasOwnProperty('jobId'))
@@ -102,7 +101,7 @@ async function main(param) {
         await con.query('call sp_summary(?)', [param.tcode]);
       con.end();
       conR.end();
-      console.log(cdate(), `${cnt} read`);
+      logger.info( `${cnt} read`);
       process.exit(0);
     }
   }, 500);
@@ -134,21 +133,18 @@ function thread_start(param) {
   if (param.tnum < 1) param.tnum = 1;
   for (let i = 0; i < param.tnum; i++) {
 
-    // const wdata =  [param.tcode, param.etc,  `${i},${pcnt}`  ];
-    // console.log(PGNM, wdata) ;
-    // msgs  += ':'+vlimit;
     const wkthread = fork(__dirname + TYPEF, [JSON.stringify(wdata)])
       .on('exit', () => {
         const i = threads.findIndex(w => w.wkthread == wkthread);
         if (i !== -1) threads.splice(i, 1);
 
-        // console.log(PGNM, i, `Thread exiting, ${threads.length} running...`);
+        logger.info(`Thread exiting, ${threads.length} running...`);
         if (threads.length == 0) {
-          console.log(cdate(), 'child all ended !!')
+           logger.info( 'child all ended !!')
         }
       });
     wkthread.on('error', async (err) => {
-      console.log(cdate(), "child error ", err);
+       logger.info( "child error ", err);
       if (param.hasOwnProperty('jobId'))
         await con.query("UPDATE texecjob x,texecing y set resultstat = 3, x.tcnt= y.tcnt,x.ccnt=y.ccnt,x.ecnt=y.ccnt," +
           "msg = concat(msg,now(),':',y.ccnt,'건 수행\r\n' ), endDt = now() where x.pkey = ? and x.pkey = y.pkey",
@@ -175,8 +171,8 @@ function thread_start(param) {
     // wkthread.postMessage(wdata) ;
 
   }
-  console.log(cdate(), "threads:", threads.length, wdata);
+   logger.info( "threads:", threads.length, wdata);
 
 }
 
-process.on('uncaughtException', (err) => { console.error(cdate(), err) });
+process.on('uncaughtException', (err) => { logger.error(err) });

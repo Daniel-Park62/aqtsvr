@@ -3,39 +3,48 @@
 
 const Net = require('net');
 const cParser = require('./cookParser') ;
-const PGNM = '[tcpRequest3] ';
-const cdate = () => PGNM + (new Date()).toLocaleString('lt').substring(5) ;
-
+const logger = require('./logs/aqtLogger').child({label:'tcpRequest'});
+const mdb = require('../db/db_con1');
 let con;
+
+process.on('SIGTERM', endProc);
+process.on('uncaughtException', (err) => { logger.error(err) });
+
 (async () => {
-  con = await require('../db/db_con1');
-  // console.log(threadId,"db connected") ;
-  process.on('SIGTERM', con.end);
+  con = await mdb;
   process.send({ ready: 1 });
-  setInterval(()=>{con.query('select 1 ')},300*1000) ;
 })();
 
 const param = JSON.parse(process.argv[2]) ;
-
-let mybns = checkCon(0) ;
+// let mybns = checkCon(0) ;
 let ckexists = 0;
-// console.log(cdate(), param);
+// logger.info( param);
+
+function endProc() {
+  if (con)  con.end() ;
+  process.exit(0);
+}
 process.on('message', async (pkey) => {
-  if (!con.isValid()) con = await require('../db/db_con1');
   if (pkey?.svCook) {
     cParser.saveCookie(pkey.svCook, pkey.svKey);
     ckexists = 1;
     return;
   }
+  // if (!con.isValid()) con = await mdb;
+  con.ping().catch(async err => {
+    logger.error(err);
+    await con.end();
+    con = await mdb ;
+  });
 
-  mybns = checkCon(mybns) ;
+  // mybns = checkCon(mybns) ;
   con.query("SELECT t.tcode, t.pkey,o_stime,c.appid, if( ifnull(m.thost,IFNULL(c.thost,''))>'',ifnull(m.thost,c.thost) ,dstip) dstip," +
     " if(ifnull(m.tport,IFNULL(c.tport,0))>0, ifnull(m.tport,c.tport), dstport) dstport,uri,sdata, slen " +
     "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.appid = m.appid ) " +
     "where t.pkey = ? ", [pkey])
     .then(rdata => dataHandle(rdata[0]))
     .catch(err => {
-      console.error(cdate(), 'select error:', pkey, err);
+      logger.error(`select error:${pkey} ${err}`);
       process.send({ err: 1 });
   });
 
@@ -56,9 +65,10 @@ function dataHandle(rdata) {
   const client = new Net.Socket();
   // Send a connection request to the server.
   if ( param.saup !== undefined && param.saup.localip ) 
-   client.connect({ port: param.saup.port, host: param.saup.hostip, localAddress: param.saup.localip });
+    client.connect({ port: param.saup.port, host: param.saup.hostip, localAddress: param.saup.localip });
   else
-	client.connect({ port: rdata.dstport, host: rdata.dstip });
+  	client.connect({ port: rdata.dstport, host: rdata.dstip });
+
   client.setTimeout(param.aqttimeout + 0);
   client.on('timeout', () => {
     // console.log(PGNM,'socket timeout');
@@ -93,7 +103,7 @@ function dataHandle(rdata) {
                       rdata = ?, sdata = ?, stime = from_unixtime(?), rtime = from_unixtime(?),  elapsed = ?, rcode = ? ,rlen = ? ,cdate = now() where pkey = ? "
       , [rDatas, rdata.sdata, stime, rtime, svctime, rcd, rsz, rdata.pkey])
       .catch(err => {
-        console.error(cdate(), 'update error:', rdata.pkey, err);
+        logger.error(`update error: ${rdata.pkey} ${err}`);
         process.send({ err: 1 });
       })
       .then(process.send({ ok: 1 }));
@@ -108,7 +118,7 @@ function dataHandle(rdata) {
                        sdata = ?, stime = from_unixtime(?), rtime = from_unixtime(?),  elapsed = ?, rcode = ? , errinfo = ? , cdate = now() where pkey = ?"
         , [rdata.sdata, stime, rtime, svctime, 999, e.message, rdata.pkey])
         .catch(err => {
-          console.error(cdate(),'update error:', err);
+          logger.error(`update error: ${err} `);
         });
     process.send({ err: 1 });
   });

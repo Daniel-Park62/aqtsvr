@@ -1,9 +1,9 @@
 const mariadb = require('mariadb');
-const config = require('./dbinfo').real;
+const config = require('./dbinfo');
 const connection = {
   host: config.host,
   port: config.port,
- //  socketPath: config.socketPath,
+  // socketPath: config.socketPath,
   user: config.user,
   password: config.password,
   database: config.database,

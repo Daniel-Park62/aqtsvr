@@ -1,35 +1,34 @@
-module.exports = {
+const configs = {
     local: { // localhost
       host: 'localhost',
       port: process.env.AQTDBPORT  ||'3306',
       user: process.env.AQTDBUSER || 'aqtdb',
       password: process.env.AQTDBPASS || 'Dawinit1!',
-      database: process.env.AQTDBNAME || 'aqtdb2',
+      database: process.env.AQTDBNAME || 'aqtdb',
       validationQuery : 'select 1', 
       testWhileIdle : true,
       socketPath: '\\\\.\\pipe.\\MySQL',
       timeBetweenEvictionRunsMillis : 3600000
     },
     real: { // real server db info
-      host: process.env.AQTDBIP  ?? '127.0.0.1',
+      host: process.env.AQTDBIP  ?? '172.22.160.1',
       port: process.env.AQTDBPORT  ||'3306',
       user: process.env.AQTDBUSER || 'aqtusr',
       password: process.env.AQTDBPASS || 'Dawinit1!',
-      database: process.env.AQTDBNAME || 'aqtdb2',
-      validationQuery : 'select 1', 
-      testWhileIdle : true,
+      database: process.env.AQTDBNAME || 'aqtdb',
       socketPath: '\\\\.\\pipe.\\MySQL',
-      timeBetweenEvictionRunsMillis : 3600000
+
     },
     dev: { // dev server db info
       host: process.env.AQTDBIP  || '192.168.0.27',
       port: process.env.AQTDBPORT  ||'3306',
       user: process.env.AQTDBUSER || 'aqtdb',
       password: process.env.AQTDBPASS || 'Dawinit1!',
-      database: process.env.AQTDBNAME || 'aqtdb2',
+      database: process.env.AQTDBNAME || 'aqtdb',
       validationQuery : 'select 1', 
       testWhileIdle : true,
-      socketPath: '\\\\.\\pipe.\\MySQL',
+      // socketPath: '\\\\.\\pipe.\\MySQL',
       timeBetweenEvictionRunsMillis : 3600000
     }
   };
+module.exports = configs.real ;

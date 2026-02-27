@@ -1,5 +1,6 @@
 const mariadb = require('mariadb');
-const config = require('./dbinfo').real;
+const config = require('./dbinfo.js');
+
 const connection = {
   supportBigNumbers: true,
   host: config.host,
@@ -11,7 +12,7 @@ const connection = {
   multipleStatements: true,
   dateStrings : true 
 } ;
-
-module.exports = mariadb.createConnection(connection) ;
+ console.log(connection);
+module.exports = mariadb.createConnection(connection).catch(e => console.log("db_con1",e)) ;
   
 

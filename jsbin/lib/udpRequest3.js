@@ -1,13 +1,16 @@
 "use strict";
 
 const dgram = require('dgram');
-const PGNM = '[udpRequest3] ';
+const logger = require('./logs/aqtLogger').child({ label: 'udpRequest' });
+const mdb = require('../db/db_con1');
 
 let con;
+
+process.on('SIGTERM', endProc);
+process.on('uncaughtException', (err) => { logger.error(err) });
+
 (async () => {
-  con = await require('../db/db_con1');
-  // console.log(threadId,"db connected") ;
-  process.on('SIGTERM', con.end);
+  con = await mdb;
   process.send({ ready: 1 });
 })();
 
@@ -16,6 +19,11 @@ const param = JSON.parse(process.argv[2]) ;
 // console.log("thread id:",threadId, param);
 
 process.on('message', (pkey) => {
+  con.ping().catch(async err => {
+    logger.error(err);
+    await con.end();
+    con = await mdb ;
+  });
 
   con.query("SELECT t.tcode, t.pkey,o_stime, if( ifnull(m.thost,IFNULL(c.thost,''))>'',ifnull(m.thost,c.thost) ,dstip) dstip," +
     " if(ifnull(m.tport,IFNULL(c.tport,0))>0, ifnull(m.tport,c.tport), dstport) dstport,uri,sdata, rlen " +
@@ -48,7 +56,7 @@ function dataHandle(rdata) {
 						rcode= ?, errinfo = ?, stime = from_unixtime(?), rtime = from_unixtime(?),  elapsed = ?, rcode = 1 ,cdate = now() where pkey = ? "
       , [ rcd, errmsg, stime, rtime, svctime,  rdata.pkey])
       .catch(err => {
-        console.error(PGNM,'update error:', rdata.pkey, err);
+        console.error('update error:', rdata.pkey, err);
         process.send({ err: 1 });
       })
       .then(process.send({ ok: 1 }));
