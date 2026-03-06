@@ -36,3 +36,8 @@ socket.on('error', function(err){
 socket.on('timeout', function(){
 	console.log('connection timeout.');
 });
+
+process.on('SIGINT', () => socket.end( (err) => {
+    if (err) console.error('연결 종료 실패:', err);
+    else console.log('연결이 종료되었습니다.');
+  }));

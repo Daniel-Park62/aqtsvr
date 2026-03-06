@@ -20,3 +20,8 @@ kernel.msgmmni=16
 
 
 make -j 
+
+node 버전관리
+nvm list
+nvm use ??
+

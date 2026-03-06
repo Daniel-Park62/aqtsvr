@@ -21,7 +21,7 @@ const threads = new Array();
 
 process.on('SIGTERM', () => {
   con.end(); conR.end();
-   logger.info( "stop process");
+  logger.info( "stop process");
   process.exit(0);
 });
 

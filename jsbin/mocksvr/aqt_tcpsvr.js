@@ -9,8 +9,8 @@ const server = new Net.Server();
 let con ;
 
 server.listen(port, function() {
-    logger.info(`Server listening for connection requests on Port:${port}`);
     if (svrno > 0 ) update_status(svrno) ;
+    logger.info(`Server listening on Port:${port}`);
 });
 
 server.on('connection', function(socket) {
@@ -31,24 +31,24 @@ server.on('connection', function(socket) {
 
     // Don't forget to catch error, for your own sake.
     socket.on('error', function(err) {
-        logger.error(`Error: ${err}`);
+        logger.error(err.message);
     });
 });
 
 async function update_status(svrno) {
-    console.log('update....');
     con = await mdb;
-    await con.query(`update tmocksvr set status=2 where pkey=?`,[svrno]) ;
+    await con.query(`update tmocksvr set status=2,procid=? where pkey=?`,[process.pid, svrno]) ;
     // con.end();
 }
 async function endfunc() {
     if (svrno > 0) {
         await con.ping() ;
         await con.query(`update tmocksvr set status=0 where pkey=?`,[svrno]) ;
+        logger.info(`${svrno} 서버종료`);
     }
     logger.info(`end Server port:${port}`) ;
     process.exit(0);
 }
 process.on('SIGINT', endfunc);
 process.on('SIGTERM', endfunc);
-process.on('uncaughtException', (err) => { logger.error(err.message) });
+process.on('uncaughtException', (err) => { endfunc(); logger.error(err.message) });

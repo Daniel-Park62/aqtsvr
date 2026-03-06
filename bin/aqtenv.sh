@@ -1,5 +1,6 @@
 export AQTHOME=/mnt/f/AQTAPP/aqtsvr
 export AQTLOG=${AQTHOME}/logs
+export AQTWEB=/mnt/f/AQT-WEB
 export AQTDBIP=172.22.160.1
 # AQTDBPORT=3306
 # AQTDBNAME=aqtdb2
@@ -11,3 +12,7 @@ export AQTDBIP=172.22.160.1
 
 echo "AQTHOME=$AQTHOME AQTLOG=$AQTLOG"
 echo "AQTDBIP=${AQTDBIP}"
+
+alias cdbin='cd $AQTHOME/bin'
+alias cdjsbin='cd $AQTHOME/jsbin'
+alias cdweb='cd $AQTWEB'

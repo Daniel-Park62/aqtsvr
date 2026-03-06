@@ -12,7 +12,7 @@ const connection = {
   multipleStatements: true,
   dateStrings : true 
 } ;
- console.log(connection);
+//  console.log(connection);
 module.exports = mariadb.createConnection(connection).catch(e => console.log("db_con1",e)) ;
   
 

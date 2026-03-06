@@ -1,6 +1,6 @@
 * AQT 설치시 당사가 설치함
-mariadb 11.4
-nodejs 20.19
+mariadb 11.8
+nodejs 22.22
 
 * 리눅스 구성시 필수설치
 tcpdump 

@@ -34,6 +34,7 @@ typedef struct
 	struct Data
 	{
 		short dbu;
+		short target;
 		unsigned long pkey;
 	} data;
 } MSGREC;
