@@ -1,10 +1,10 @@
 
-// const conp = require('./db/db_con1'); 
+const {getCon} = require('./db/db_con1'); 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 async function main() {
-    const con = await require('./db/db_con1');
+    const con = await getCon() ;
     let cc=0
     con.query("select code from tmaster").then(row => console.log(row[0])) ;
     const cmd = "SELECT t.pkey,o_stime " +

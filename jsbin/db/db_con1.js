@@ -14,5 +14,7 @@ const connection = {
 } ;
 //  console.log(connection);
 module.exports = mariadb.createConnection(connection).catch(e => console.log("db_con1",e)) ;
+module.exports.getCon = () => mariadb.createConnection(connection) ;
+
   
 

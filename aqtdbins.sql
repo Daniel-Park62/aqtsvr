@@ -180,6 +180,16 @@ COLLATE='utf8_general_ci'
 ENGINE=InnoDB
 ;
 
+CREATE TABLE IF NOT EXISTS  `tmocksvrlog` (
+	`pkey` INT(11) NOT NULL,
+	`logs` TEXT(65535) NULL DEFAULT '' COLLATE 'utf8_general_ci',
+	PRIMARY KEY (`pkey`) USING BTREE
+)
+COMMENT='모의서버 로그'
+COLLATE='utf8_general_ci'
+ENGINE=InnoDB
+;
+
 CREATE TABLE IF NOT EXISTS `tlevel` (
   `lvl` char(1) NOT NULL DEFAULT '0',
   `lvl_nm` varchar(50) NOT NULL DEFAULT '',

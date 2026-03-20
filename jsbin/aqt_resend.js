@@ -12,7 +12,7 @@ async function main() {
   logger.info(`start ${aqttype}`) ;
   await childs.childs_start({logger, tnum:5,dbskip:0, aqttype}) ;
 
-  con = await mdb;
+  con = await mdb.getCon();
   logger.info(`start Resend check ${Dsec} 초 단위`);
   // const sendhttp = require('./lib/sendHttp') ;
   setInterval(async () => {
