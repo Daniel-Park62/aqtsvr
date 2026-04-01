@@ -4,6 +4,7 @@
 
 "use strict";
 const childs = require("./lib/childReq");
+const {getCon} = require('../db/db_con1') ;
 const logger = require('./logs/aqtLogger').child({label:'sendMain3'});
 
 const MAX_RESP_LEN = 1024 * 32;
@@ -30,8 +31,8 @@ process.on('message', (param) => {
 });
 
 async function main(param) {
-  con = await require('../db/db_con1'); // param.conn;
-  conR = await require('../db/db_con1'); // param.conn;
+  con = await getCon() ; // param.conn;
+  conR = await getCon() ; // param.conn;
   if (!param.loop) param.loop = 1;
   let tcnt = 0;
 
@@ -44,7 +45,7 @@ async function main(param) {
   while (param.loop-- > 0) {
     let sv_time;
     let delay = 0;
-    const rows = await conR.query("SELECT t.pkey,o_stime FROM ttcppacket t  " +
+    const rows = await conR.query("SELECT t.pkey,o_stime FROM vpacket t  " +
       "where t.tcode = ? " + condi + orderby + vlimit, [param.tcode]);
     tcnt = rows.length;
     if (param.hasOwnProperty('jobId')) {

@@ -1,6 +1,7 @@
 "use strict";
 const loggerM = require('./lib/logs/aqtLogger');
 const logger = loggerM.child({label:'dumpToDb'}) ;
+const {getCon} = require('./db/db_con1') ;
 if (process.argv.length < 3 ) {
     logger.info(" Job Id 를 지정하세요.");
     process.exit(1);
@@ -8,7 +9,7 @@ if (process.argv.length < 3 ) {
 const jobid = process.argv[2] ;
 let args = JSON.parse(process.argv[3]) ;
 (async () => {
-  const conp = await require('./db/db_con1') ;
+  const conp = await getCon() ;
   
   const rows = await conp.query("select jdata from texecjob where pkey = ?",[jobid]) ;
   
@@ -33,6 +34,9 @@ let args = JSON.parse(process.argv[3]) ;
     await childs.childs_start(args) ;
     args.sendf = childs.child_send ;
   }
+  
+  conp.query(" update texecing set tcnt = ?, ccnt = 0, ecnt= 0, pidv = ?,elaps=0 where pkey = ? ", [1, process.pid, jobid]);
+  
   let aqtsrc = 'capToDb';
 
   if (  args.aqttype.toUpperCase() === 'TMAX') 

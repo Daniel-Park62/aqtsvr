@@ -1,8 +1,9 @@
 "use strict";
 
 const iconv = require('iconv-lite');
-const http = require('follow-redirects').http;
+const { http } = require('follow-redirects');
 const mdb = require('../db/db_con1');
+const { log } = require('winston');
 
 const logger = require('./logs/aqtLogger').child({ label: 'httpRequest' });
 
@@ -10,7 +11,8 @@ let con;
 process.on('SIGTERM', endProc);
 process.on('uncaughtException', (err) => { logger.error(err) });
 (async () => {
-  con = await mdb;
+  con = await mdb.getCon();
+  logger.info(`HTTP Request Worker Ready ,${con.threadId}`);
   process.send({ ready: 1 });
 })();
 const ckMap = new Map();
@@ -29,19 +31,19 @@ process.on('message', (pkey) => {
     saveCookie(pkey.svCook, pkey.svKey);
     return;
   }
-  //mybns = checkCon(mybns);
   con.ping().catch(async err => {
     logger.error(err);
     await con.end();
-    con = await mdb ;
+    con = await mdb.getCon();
   });
-  con.query("SELECT t.tcode,t.appid, t.pkey,o_stime, if( ifnull(m.thost,IFNULL(c.thost,''))>'',ifnull(m.thost,c.thost) ,dstip) dstip," +
-    " if(ifnull(m.tport,IFNULL(c.tport,0))>0, ifnull(m.tport,c.tport), dstport) dstport,uri,method,sdata, rlen , ifnull(c.tenv,'') encval " +
-    "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.appid = m.appid ) " +
-    "where t.pkey = ? ", [pkey])
+
+  logger.info(`Received pkey : ${pkey}`);
+  con.query(`SELECT t.tcode,t.appid, t.pkey,o_stime, if( IFNULL(thost,'')>'',thost ,dstip) dstip,
+      if( IFNULL(tport,0)>0, tport, dstport) dstport,uri,method,params, headers, sdata, rlen , ifnull(encval,'') encval 
+     FROM vtcppacket t  where t.pkey = ? `, [pkey])
     .then(rdata => dataHandle(rdata[0]))
     .catch(err => {
-      logger.error('select error:', pkey, err);
+      logger.error(`select error: ${pkey} - ${err.message}`);
       process.send({ err: 1 });
     });
 });
@@ -53,19 +55,18 @@ function checkCon(id) {
 }
 function dataHandle(rdata) {
   let sdataStr = rdata.encval.length > 1 ? iconv.decode(rdata.sdata, rdata.encval).toString() : rdata.sdata.toString();
-  if (! /^(GET|POST|DELETE|PUT|PATCH)\s+(\S+)\s/s.test(sdataStr)) {
-    process.send({ ready: 1 });
-    return;
-  }
-  let uri = /^(GET|POST|DELETE|PUT|PATCH)\s+(\S+)\s/s.exec(sdataStr)[2];
+
+  /* let uri = /^(GET|POST|DELETE|PUT|PATCH)\s+(\S+)\s/s.exec(sdataStr)[2]; */
+  let uri = rdata.uri;
   if (uri.indexOf('%') == -1) uri = encodeURI(uri);
+/* 
   if (/[^a-z0-9\:\/\?\#\[\]\@\!\$\&\'\(\)\*\+\,\;\=\.\-\_\~\%]/i.test(uri)) {
     rdata.encval = 'euc-kr';
     sdataStr = iconv.decode(rdata.sdata, 'EUC-KR').toString();
     uri = /^(GET|POST|DELETE|PUT|PATCH)\s+(\S+)\s/s.exec(sdataStr)[2];
     uri = encodeURI(iconv.encode(uri, 'EUC-KR'));
-    // if ( uri.indexOf('%') == -1) uri = encodeURI(uri) ;
   }
+ */  
   if (/[^a-z0-9\:\/\?\#\[\]\@\!\$\&\'\(\)\*\+\,\;\=\.\-\_\~\%]/i.test(uri)) {
 
     logger.info("%s ** inValid URI : %s , uid=%d", rdata.tcode, uri, rdata.pkey);
@@ -73,19 +74,18 @@ function dataHandle(rdata) {
     return;
   }
   const options = {
-    hostname: rdata.dstip,
-    port: rdata.dstport,
-    path: uri,
     method: rdata.method,
     timeout: param.aqttimeout,
     headers: {
       // connection: "keep-alive",
     },
   };
-  const pi = sdataStr.indexOf("\r\n\r\n");
-  const shead = (pi > 0) ? sdataStr.slice(0, pi) : sdataStr;
+  if (sdataStr.length > 0) options.body = sdataStr;
+
+  const shead = rdata.headers ;
+
   const shead2 = shead.split('\r\n');
-  let new_shead = shead2[0] + '\r\n';
+  let new_shead = "";
   for (const v of shead2) {
     const kv = v.split(':');
     // if (/(Content-Type|Referer|upgrade-Insecure-Requests|Accept|Cookie)/.test(kv[0])) {
@@ -116,97 +116,65 @@ function dataHandle(rdata) {
       }
     }
   };
-  let sdata = '';
-  if (pi > 0 && /POST|PUT|DELETE|PATCH/.test(rdata.method)) {
-    sdata = rdata.encval.length > 1 ? iconv.encode(sdataStr.slice(pi + 4), rdata.encval) : sdataStr.slice(pi + 4);
-
-    try {
-      const sdata_json = sdata.length > 0 ? JSON.parse(sdata) : {};
-      if ('body' in sdata_json && sdata_json.body.taskid && sdata_json.body.imgid) {
-        getTaskid(sdata_json.body.imgid)
-          .then(id => {
-            sdata_json.body.taskid = id;
-            sdata = JSON.stringify(sdata_json);
-            options.headers['Content-Length'] = Buffer.byteLength(sdata);
-          })
-      };
-
-    } catch (err) {
-      //logger.info( "not json");
-    }
-
-  }
+  // logger.info(`newHeader: ${new_shead}  `);
+  options.headers['Content-Length'] = Buffer.byteLength(sdataStr);
   const stimem = performance.now();
   const stime = (new Date()).getTime() / 1000;
-  const req = http.request(options, function (res) {
-    let resHs = 'HTTP/' + res.httpVersion + ' ' + res.statusCode + ' ' + res.statusMessage + "\r\n";
-    for (const [key, value] of Object.entries(res.headers)) {
-      resHs += `${key}: ${value}\r\n`;
-      if (/set-cookie/i.test(key)) {
-        // saveCookie(`${value}`,rdata.dstip+":"+rdata.dstport);
-        process.send({ svCook: value, svKey: rdata.dstip + ":" + rdata.dstport });
-      }
-    };
+  const auri = `http://${rdata.dstip}:${rdata.dstport}${uri}`;
+  logger.info(`uri : ${rdata.method} ${auri}  id=${rdata.pkey} `);
+  fetch(auri, options)
+  .then( async (res) => {
+    let resHs = `HTTP/1.1 ${res.status} ${res.statusText}\r\n`;
+    // logger.info(`Res : ${res.headers.get("content-type")}  `);
+/*
+    if (res.getHeader("set-cookie") && res.getHeader("set-cookie").length > 0) {
+        process.send({ svCook: res.getHeader("set-cookie") , svKey: rdata.dstip + ":" + rdata.dstport });
+    } */
+    res.headers.forEach((value,key) => {
+      resHs += key + ': ' + value + '\r\n';
+    });
+    
     // res.setEncoding('utf8');
-    let recvData = [];
+    let recvData = res.ok ? await res.json() : '' ;
+    let errtext = res.ok ? '' : res.statusText ;
     // res.once('readable', () => {
     //   stime = moment() ;
     // }) ;
-    res.on('timeout', () => {
-      res.emit('error', new Error('Client timeout'));
-      res.end();
-    });
-    res.on('data', function (chunk) {
-      recvData.push(chunk);
-    });
-    res.on('end', () => {
-      // console.log("* res end *",rdata.uri) ;
-      if (param.dbskip) {
-        // console.log("skip ok",rdata.uri)
-        process.send({ ready: 1 });
-        return;
-      }
+
       const rtimem = performance.now();
       const svctime = (rtimem - stimem) / 1000;
       const rtime = stime + svctime;
-      let rDatas = Buffer.concat(recvData);
+      let rDatas = Buffer.from(JSON.stringify(recvData)) ;
       const rsz = res.headers['content-length'] || rDatas.length;
       //         logger.info(` ${stime.toSqlfmt()} ${rtime.toSqlfmt()} ${svctime} id=${rdata.pkey} Recv len=${rsz} ` );
       // let new_d = Buffer.from(resdata,'binary') ;
-      con.query("UPDATE ttcppacket SET \
-                    rdata = ?, sdata = ?, stime = from_unixtime(?), rtime = from_unixtime(?),  elapsed = ?, rcode = ? ,rhead = ?, rlen = ? ,cdate = now() where pkey = ? "
-        , [rDatas, Buffer.from(new_shead), stime, rtime, svctime, res.statusCode, resHs, rsz, rdata.pkey])
+      con.query(`UPDATE vpacket SET 
+                    rdata = ?, headers = ?, stime = from_unixtime(?), rtime = from_unixtime(?), 
+                     elapsed = ?, rcode = ? ,errinfo=?,rhead = ?, rlen = ? ,cdate = now() where pkey = ? `
+        , [rDatas, new_shead, stime, rtime, svctime, res.status,res.statusText, resHs, rsz, rdata.pkey])
         .catch(err => {
           logger.error('update error:%d %s', rdata.pkey, err.message);
           process.send({ err: 1 });
         })
         .then(process.send({ ok: 1 }));
-    });
-  });
-  if (pi > 0 && /POST|PUT|DELETE|PATCH/.test(rdata.method)) {
-    req.write(sdata);
-    if (rdata.encval.length > 1)
-      new_shead = Buffer.concat([Buffer.from(iconv.encode(new_shead + '\r\n', rdata.encval)), sdata]);
-    else
-      new_shead += '\r\n' + sdata;
-  }
-  req.on('error', (e) => {
+    
+  })
+  .catch( (e) => {
     // console.error(PGNM, e.message, e.errno);
     const rtimem = performance.now();
     const svctime = (rtimem - stimem) / 1000;
     const rtime = stime + svctime;
 
     if (!param.dbskip)
-      con.query("UPDATE ttcppacket SET \
-                      sdata = ?,  stime = from_unixtime(?), rtime = from_unixtime(?),  elapsed = ?, rcode = ? , rhead = ? , cdate = now() where pkey = ?"
-        , [Buffer.from(new_shead), stime, rtime, svctime, 999, e.message, rdata.pkey])
+      con.query(`UPDATE vpacket SET 
+                      headers = ?,  stime = from_unixtime(?), rtime = from_unixtime(?),  elapsed = ?,
+                      rcode = ? , errinfo = ? , cdate = now() where pkey = ?`
+        , [new_shead, stime, rtime, svctime, 999, e.message, rdata.pkey])
         .catch(err => logger.error('update error:', err));
     ;
     process.send({ err: 1 });
   });
-
-  req.end();
-
+  
   function change_cookie(odata) {
     const ckData = parseCookies(odata);
     const sv_ck = ckMap.get(rdata.dstip + ":" + rdata.dstport);

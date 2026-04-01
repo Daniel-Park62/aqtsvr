@@ -1,19 +1,20 @@
 "use strict";
 const { fork } = require('child_process');
-logger = require('./lib/logs/aqtLogger').child({label:'execJob'});
+const {getCon} = require('./db/db_con1');
+const logger = require('./lib/logs/aqtLogger').child({label:'execJob'});
 if (process.argv.length < 3 ) {
     logger.info(" Job Id 를 지정하세요.");
     process.exit(1);
 }
 const jobid = process.argv[2] ;
-let childid ;
 (async () => {
-  const con = await require('./db/db_con1');
+  let childid ;
+  const con = await getCon() ;
   logger.info( "* start Execute Job");
   
   try {
     const rows = await con.query("select pkey, jobkind, tcode, tnum,dbskip, exectype,etc,in_file, \
-                reqnum, repnum, limits, ifnull(msg,'') msg from texecjob \
+                reqnum, repnum, limits, reqstartdt, ifnull(msg,'') msg from texecjob \
               WHERE pkey = ? AND resultstat = 2 ",[jobid] ) ;
       if (rows.length == 0) return;
       
@@ -33,11 +34,12 @@ let childid ;
   async function dumpData(row) {
     childid = fork('./aqt_dumpToDb',[row.pkey, JSON.stringify(row)] );
     childid.on('error',(err) => logger.error(`fork error: ${err.message}`) ) ;
+    childid.on('exit',()=>{logger.info("child end:",childid.pid); endprog();}) ;
   }
 
   async function sendData(row) {
 
-    con.query("SELECT lvl,if(pro='1','HTTP',IF(pro='2','UDP','TCP')) pro FROM TMASTER WHERE CODE = ?", [row.tcode])
+    con.query("SELECT lvl,if(pro='1','HTTP',IF(pro='2','UDP','TCP')) pro FROM vtcase WHERE CODE = ?", [row.tcode])
       .then( dat => {
         if (dat[0].lvl == '0') {
           logger.info( "Origin ID 는 테스트 불가합니다.");
@@ -47,7 +49,7 @@ let childid ;
 
         childid = fork('./lib/sendMain3');
         logger.info( "child pid=> ", childid.pid);
-        childid.on('exit',()=>{logger.info("child end:",childid.pid)}) ;
+        childid.on('exit',()=>{logger.info("child end:",childid.pid); endprog();}) ;
 
         let param = {
           tcode: row.tcode, cond: row.etc, tnum: row.tnum, aqttype: dat[0].pro, exectype: row.exectype
@@ -62,7 +64,13 @@ let childid ;
   }
   function endprog() {
     logger.info( "## Exec job program End");
-    if (con) con.end();
+    if (con) {
+      if (jobid) {
+         logger.info( "## Update Job Result");
+         con.query("UPDATE texecjob set resultstat = 9, endDt = now() where pkey = ?; commit;", [jobid]);
+      }
+      con.end();
+    }
     if (childid) childid.kill() ;
     process.exit(0)
   }
@@ -70,5 +78,5 @@ let childid ;
   process.on('SIGINT', endprog);
   // process.on('SIGKILL',() => { console.log('KILL'); endprog; process.exit(0) } ); 
   process.on('SIGTERM', endprog);
-  process.on('uncaughtException', (err) => { logger.info( 'uncaughtException:', err); });
+  process.on('uncaughtException', (err) => { logger.error( 'uncaughtException:', err); });
   })() ;

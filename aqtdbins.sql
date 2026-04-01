@@ -279,7 +279,7 @@ CREATE TABLE IF NOT EXISTS `tservice` (
   `manager` varchar(50) DEFAULT NULL COMMENT '담당자',
   `cumcnt` int(10) unsigned DEFAULT 0 COMMENT '누적건수',
   PRIMARY KEY (`pkey`) USING BTREE,
-  KEY `svcapp` (`svcid`,`appid`)
+  UNIQUE INDEX `svcapp` (`svcid`,`appid`)
 ) ENGINE=InnoDB COMMENT='서비스 id / name';
 
 CREATE TABLE `tsvcsum` (

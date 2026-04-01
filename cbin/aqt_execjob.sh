@@ -13,7 +13,7 @@ COND="TCODE='$tcode'" ;
 [ ${#etc} -gt 6 ] && COND="$COND AND (${etc//\"/\'})" ;
 echo $COND ;
 
-read lvl target <<<`$AQTHOME/bin/aqtconn "select lvl,thost from tmaster where code = '$tcode'" ` ;
+read lvl target <<<`$AQTHOME/bin/aqtconn "select lvl,thost from vtcase where tcode = '$tcode'" ` ;
 
 [ $tnum -lt 3 ] && tnum=3;
 

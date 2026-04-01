@@ -41,6 +41,7 @@ module.exports = {
     async childs_start(param) {
       logger = param.logger.child({label:'childReq'}) ; 
       con = param.conn ;
+      logger.info(`childReq start : ${con.threadId}`);
       let ucnt = 0, ecnt = 0, sv_cnt = 0;
 //      logger.info(`tnum : ${param.tnum}`) ;
       let TYPEF;

@@ -4,7 +4,7 @@ const SIZE_BLOB = 1024 * 1024 * 2;
 const PGNM = '[capToDb]';
 let myMap = null;
 let myMap_s = null;
-let con ;
+let con;
 // process.on('SIGTERM', endprog);
 process.on('warning', (warning) => {
     console.warn(warning.name);    // Print the warning name
@@ -28,9 +28,10 @@ module.exports = function (args) {
     const fs = require('fs');
     let dstobj;
     let ltype = 1;
-    let child = null ;
+    let child = null;
     icnt = 0;
     console.log("%s Start 테스트id(%s) 입력파일(%s)", PGNM, args.tcode, args.dstf);
+    const startt = performance.now();
     if (args.dstf) {
         if (!fs.statSync(args.dstf).isFile()) throw 'is not File';
         dstobj = args.dstf;
@@ -39,8 +40,8 @@ module.exports = function (args) {
         let conds = 'tcp && tcp[13]&16 != 0 ';
         conds += (args.dstip ? ` && ( net ${args.dstip} ) ` : "");
         conds += (args.otherCond ? ` &&  ${args.otherCond} ` : "");
-        console.log(PGNM, `tcpdump -s0 -w - ${args?.otherOpt} " ${conds} "` );
-        child = spawn(`tcpdump -s0 -w - ${args?.otherOpt} `, ['"' , conds ,'"'], { shell: true });
+        console.log(PGNM, `tcpdump -s0 -w - ${args?.otherOpt} " ${conds} "`);
+        child = spawn(`tcpdump -s0 -w - ${args?.otherOpt} `, ['"', conds, '"'], { shell: true });
         dstobj = child.stdout;
         process.on('SIGINT', () => child.kill());
     }
@@ -52,8 +53,8 @@ module.exports = function (args) {
     let endsw = 1;
     parser.on('packet', async function (packet) {
         if (args.maxcnt > 0 && args.maxcnt <= icnt) {
-            if (endsw) { endsw = 0;  endprog();}
-            return ;
+            if (endsw) { endsw = 0; endprog(); }
+            return;
         }
         let ret = decoders.Ethernet(packet.data);
         let ptime = moment.unix(packet.header.timestampSeconds).format('YYYY-MM-DD HH:mm:ss') + '.' + packet.header.timestampMicroseconds;
@@ -74,11 +75,11 @@ module.exports = function (args) {
             const srcip = ret.info.srcaddr;
             const dstip = ret.info.dstaddr;
             if (ret.info.protocol === PROTOCOL.IP.TCP) {
-        
+
                 let datalen = ret.info.totallen - ret.hdrlen;
                 // console.log(PGNM,'Decoding TCP ...');
                 ret = decoders.TCP(buffer, ret.offset);
-//               console.log(PGNM,ret.hdrlen ,srcip, dstip,' from port: ' + ret.info.srcport + ' to port: ' + ret.info.dstport);
+                //               console.log(PGNM,ret.hdrlen ,srcip, dstip,' from port: ' + ret.info.srcport + ' to port: ' + ret.info.dstport);
                 datalen -= ret.hdrlen;
                 if (datalen <= 0) return;
                 // console.log(PGNM,'seqno ', ret.info.seqno, 'ackno ', ret.info.ackno, 'datalen ', datalen, ' next ', ret.info.seqno + datalen);
@@ -87,16 +88,26 @@ module.exports = function (args) {
                 // console.log(PGNM,buffer.slice(ret.offset, ret.offset + 200).toString());
                 let ky = util.format('%s:%d:%d', srcip, ret.info.srcport, Math.floor(ret.info.ackno / 100));
                 let sky = util.format('%s:%d:%s:%d', srcip, ret.info.srcport, dstip, ret.info.dstport);
-                if (patt1.test(dstip) && patt2.test(ret.info.dstport.toString() ) 
+                if (patt1.test(dstip) && patt2.test(ret.info.dstport.toString())
                     && /^(GET|POST|DELETE|PUT|PATCH)\s/.test(buffer.slice(ret.offset, ret.offset + 10).toString())) {
                     // let sdata = buffer.slice(ret.offset, ret.offset + datalen);
                     let sdata = buffer.slice(ret.offset);
-                    let mdata = /^(GET|POST|DELETE|PUT|PATCH)\s+(\S+?)[?\s](?:.*Content-Length:\s*(\d+)|.*)?/s.exec(sdata.toString());
+                    let pi = sdata.indexOf("\r\n\r\n");
+                    let shead = sdata;
+                    if (pi > 0) {
+                        shead = sdata.slice(0, pi).toString();
+                        sdata = sdata.slice(pi + 4);
+                    } else {
+                        sdata = Buffer.from
+                    }
+                    let mdata = /^(GET|POST|DELETE|PUT|PATCH)\s+(\S+?)[?\s](?:.*Content-Length:\s*(\d+)|.*)?/s.exec(shead);
                     if (mdata == undefined) {
-                        console.error(PGNM, "mdata undefined",sdata.toString());
+                        console.error(PGNM, "mdata undefined", sdata.toString());
                         return;
                     }
                     if (/\.(css|js|ico|png|jpg|gif|png|pdf|html)$/i.test(mdata[2])) return;
+                    pi = shead.indexOf("\r\n");
+                    if (pi >= 0) shead = shead.slice(pi + 2);
                     let clen = mdata[3] ? Number(mdata[3]) : 0;
                     let datas = {
                         tcode: args.tcode,
@@ -106,7 +117,8 @@ module.exports = function (args) {
                         stime: ptime,
                         rtime: ptime,
                         sdata: sdata,
-                        slen: datalen,
+                        headers: shead,
+                        slen: sdata.length,
                         shlen: clen,
                         rlen: -1,
                         srcip: srcip,
@@ -126,7 +138,9 @@ module.exports = function (args) {
                         console.error(PGNM, mdata[2], error);
                         datas.uri = mdata[2].replace(/(.+)\/$/, '$1');
                     }
-                    if (args.norcv && datas.slen <= datas.sdata.length) {
+                    [datas.uri, datas.params] = datas.uri.split('?');
+
+                    if (args.norcv && datalen <= datas.sdata.length + datas.headers.length) {
                         await insert_data(datas);
                         return;
                     }
@@ -160,6 +174,7 @@ module.exports = function (args) {
                         datas.isUTF8 = ! /charset=euc-kr/si.test(res);
                     } else
                         pi = ret.offset;
+
                     let rcode = /^HTTP.+?\s(\d+?)\s(?:.*Content-Length:\s*(\d+)|.*)?/s.exec(res);
                     let rval = {};
                     if (rcode) {
@@ -169,6 +184,7 @@ module.exports = function (args) {
                     };
                     // if (datas.seqno == 995092230) console.log("@@" + buffer.slice(pi,pi+100 ).toString());
                     rval = bufTrimN(buffer.slice(pi), datas.isUTF8);
+
                     if (datas.rdata.length > 0)
                         // datas.rdata = Buffer.concat([datas.rdata, bufTrim(buffer.slice(ret.offset))]);
                         datas.rdata = Buffer.concat([datas.rdata, rval.data]);
@@ -181,6 +197,7 @@ module.exports = function (args) {
                     // if (rval.chk || datas.rlen > 0 && (datas.rdata.length >= (MAX_RESP_LEN >= datas.rlen ? MAX_RESP_LEN : datas.rlen))) {
                     if (rval.chk || datas.rlen == 0 || datas.rdata.length >= datas.rlen || ret.info.flags & 0x08) {
                         await insert_data(datas);
+
                         myMap.delete(ky);
                     } else {
                         myMap.set(ky, datas);
@@ -207,7 +224,7 @@ module.exports = function (args) {
         } else
             console.log(PGNM, 'Unsupported Ethertype: ', ret.info.type, PROTOCOL.ETHERNET[ret.info.type]);
     });
-    parser.on('end', endprog );
+    parser.on('end', endprog);
     const iconv = require('iconv-lite');
     function bufTrimN(buf, isUTF8) {
         // let pi = buf.length > 100 ? 100 : buf.length;
@@ -229,7 +246,7 @@ module.exports = function (args) {
     async function endprog() {
         let cnt = 0;
         let tcnt = myMap.size;
-        if (tcnt) console.log(PGNM,"myMap:", tcnt);
+        if (tcnt) console.log(PGNM, "myMap:", tcnt);
         for (let datas of myMap.values()) {
             // if (datas.rhead.length == 0)  datas.rhead = 'No Data' ;
             if (datas.rhead.length > 0 || datas.rdata.length > 0) {
@@ -251,21 +268,25 @@ module.exports = function (args) {
     async function insert_data(datas) {
         if (args.norcv == 'X') {
             process.stdout.write(datas.sdata);
-            return ;
+            return;
         }
+        const elapsed = (performance.now() - startt) / 1000;
+        await con.query(" update texecing set tcnt = ?, ccnt = ?,  elaps=? where pkey = ? ", [icnt, icnt, elapsed, args.jobId]);
+
         return con.query("INSERT INTO TLOADDATA \
             (TCODE, O_STIME,STIME,RTIME, SRCIP,SRCPORT,DSTIP,DSTPORT,PROTO, URI,SEQNO,ACKNO \
-                ,METHOD,RCODE,RHEAD,slen,rlen,SDATA,RDATA) \
+                ,METHOD,RCODE,RHEAD,slen,rlen,headers,params, SDATA,RDATA) \
             values \
-            ( ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?) ",
-            [datas.tcode,  datas.o_stime, datas.stime, datas.rtime, datas.srcip, datas.srcport, datas.dstip, datas.dstport, '1',
+            ( ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?,?) ",
+            [datas.tcode, datas.o_stime, datas.stime, datas.rtime, datas.srcip, datas.srcport, datas.dstip, datas.dstport, '1',
             datas.uri, datas.seqno, datas.ackno, datas.method, datas.rcode, datas.rhead, datas.slen,
-            datas.rdata.length, datas.sdata, datas.rdata])
+            datas.rdata.length, datas.headers, datas.params, datas.sdata, datas.rdata])
             .then(dt => {
                 icnt++;
                 if (icnt % 1000 == 0) {
                     console.log(PGNM + "** insert ok %s", icnt.toLocaleString().padStart(7));
                 }
+
             })
             .catch(err => {
                 console.error(" insert error size(%d) count(%d) ", datas.rdata.length + datas.sdata.length, icnt);

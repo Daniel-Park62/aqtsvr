@@ -11,7 +11,7 @@ process.on('SIGTERM', endProc);
 process.on('uncaughtException', (err) => { logger.error(err) });
 
 (async () => {
-  con = await mdb;
+  con = await mdb.getCon();
   process.send({ ready: 1 });
 })();
 
@@ -34,14 +34,13 @@ process.on('message', async (pkey) => {
   con.ping().catch(async err => {
     logger.error(err);
     await con.end();
-    con = await mdb ;
+    con = await mdb.getCon();
   });
 
   // mybns = checkCon(mybns) ;
-  con.query("SELECT t.tcode, t.pkey,o_stime,c.appid, if( ifnull(m.thost,IFNULL(c.thost,''))>'',ifnull(m.thost,c.thost) ,dstip) dstip," +
-    " if(ifnull(m.tport,IFNULL(c.tport,0))>0, ifnull(m.tport,c.tport), dstport) dstport,uri,sdata, slen " +
-    "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.appid = m.appid ) " +
-    "where t.pkey = ? ", [pkey])
+  con.query(`SELECT t.tcode, t.pkey,o_stime,c.appid, if( ifnull(thost,'')>'',thost ,dstip) dstip,
+         if(IFNULL(tport,0)>0, tport, dstport) dstport,uri,sdata, slen 
+      FROM vtcppacket t  where t.pkey = ? `, [pkey])
     .then(rdata => dataHandle(rdata[0]))
     .catch(err => {
       logger.error(`select error:${pkey} ${err}`);
@@ -99,7 +98,7 @@ function dataHandle(rdata) {
       rcd = rDatas.readUInt16BE(5) ;
       ajp_parser(rDatas) ;
     }
-    con.query("UPDATE ttcppacket SET \
+    con.query("UPDATE vpacket SET \
                       rdata = ?, sdata = ?, stime = from_unixtime(?), rtime = from_unixtime(?),  elapsed = ?, rcode = ? ,rlen = ? ,cdate = now() where pkey = ? "
       , [rDatas, rdata.sdata, stime, rtime, svctime, rcd, rsz, rdata.pkey])
       .catch(err => {
@@ -114,7 +113,7 @@ function dataHandle(rdata) {
     const rtime = stime + svctime ;
 
     if (!param.dbskip)
-      con.query("UPDATE ttcppacket SET \
+      con.query("UPDATE vpacket SET \
                        sdata = ?, stime = from_unixtime(?), rtime = from_unixtime(?),  elapsed = ?, rcode = ? , errinfo = ? , cdate = now() where pkey = ?"
         , [rdata.sdata, stime, rtime, svctime, 999, e.message, rdata.pkey])
         .catch(err => {
