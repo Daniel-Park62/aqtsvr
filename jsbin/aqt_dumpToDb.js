@@ -35,7 +35,7 @@ let args = JSON.parse(process.argv[3]) ;
     args.sendf = childs.child_send ;
   }
   
-  conp.query(" update texecing set tcnt = ?, ccnt = 0, ecnt= 0, pidv = ?,elaps=0 where pkey = ? ", [1, process.pid, jobid]);
+  conp.query(" update texecing set tcnt = ?, ccnt = 0, ecnt= 0, pidv = ?,elaps=0 where pkey = ? ;commit;", [1, process.pid, jobid]);
   
   let aqtsrc = 'capToDb';
 

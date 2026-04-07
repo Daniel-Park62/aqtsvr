@@ -12,7 +12,10 @@ function jobs_f1 {
 }
 
 function jobs_f2 {
-  echo `ps -ef |egrep "node (aqt_execJob|aqt_resend)" |grep -v grep | awk '{printf "%d ",$2}'` ;
+  echo `ps -ef |egrep "node aqt_resend|aqt_execMstjs" |grep -v grep | awk '{printf "%d ",$2}'` ;
+}
+function jobs_f22 {
+  echo `ps -ef |egrep "node aqt_resend" |grep -v grep |head -1| awk '{printf "%d ",$2}'` ;
 }
 
 # tmax type start
@@ -46,12 +49,14 @@ function stop_f1 {
 # http type start
 function start_f2 {
   cd $AQTHOME/jsbin ;
+  JOBSP=$(jobs_f22) ;
   JOBS=$(jobs_f2) ;
   if  [ ${#JOBS} -gt 0 ]  ; then
     if [ $1 == 'start' ] ; then
       echo "이미 실행중입니다."; 
       return ; 
     else
+      pkill -P ${JOBSP} 2>/dev/null ;
       kill ${JOBS} 2>/dev/null ;
     fi
   fi
@@ -65,7 +70,9 @@ function start_f2 {
 function stop_f2 {
   cd $AQTHOME/cbin ;
   JOBS=$(jobs_f2) ;
+  JOBSP=$(jobs_f22) ;
   if [ ${#JOBS} -gt 0 ]; then
+    pkill -P ${JOBSP} 2>/dev/null ;
     kill ${JOBS} 2>/dev/null ;
   else
     echo "중지할 작업이 없습니다.";

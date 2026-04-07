@@ -5,14 +5,16 @@ const PGNM = '[capToDb]';
 let myMap = null;
 let myMap_s = null;
 let con;
+let logger;
 // process.on('SIGTERM', endprog);
 process.on('warning', (warning) => {
-    console.warn(warning.name);    // Print the warning name
-    console.warn(warning.message); // Print the warning message
-    console.warn(warning.stack);   // Print the stack trace
+    logger.warn(warning.name);    // Print the warning name
+    logger.warn(warning.message); // Print the warning message
+    logger.warn(warning.stack);   // Print the stack trace
 });
 let icnt = 0;
 module.exports = function (args) {
+    logger = args.logger.child({label:'catToDb'}) ;
     con = args.conn;
     const patt1 = new RegExp(args.dstip);
     const patt2 = new RegExp(args.dstport.length > 0 ? args.dstport : '.');
@@ -30,17 +32,17 @@ module.exports = function (args) {
     let ltype = 1;
     let child = null;
     icnt = 0;
-    console.log("%s Start 테스트id(%s) 입력파일(%s)", PGNM, args.tcode, args.dstf);
+    logger.info(`Start 테스트id(${args.tcode}) 입력파일(${args.dstf})`);
     const startt = performance.now();
     if (args.dstf) {
         if (!fs.statSync(args.dstf).isFile()) throw 'is not File';
         dstobj = args.dstf;
     } else {
-        // console.error(err);
+        // logger.error(err);
         let conds = 'tcp && tcp[13]&16 != 0 ';
         conds += (args.dstip ? ` && ( net ${args.dstip} ) ` : "");
         conds += (args.otherCond ? ` &&  ${args.otherCond} ` : "");
-        console.log(PGNM, `tcpdump -s0 -w - ${args?.otherOpt} " ${conds} "`);
+        logger.info(`tcpdump -s0 -w - ${args?.otherOpt} " ${conds} "`);
         child = spawn(`tcpdump -s0 -w - ${args?.otherOpt} `, ['"', conds, '"'], { shell: true });
         dstobj = child.stdout;
         process.on('SIGINT', () => child.kill());
@@ -48,7 +50,7 @@ module.exports = function (args) {
     const parser = pcapp.parse(dstobj);
     parser.on('globalHeader', (gheader) => {
         ltype = gheader.linkLayerType;
-        console.log(gheader);
+        logger.info(gheader);
     });
     let endsw = 1;
     parser.on('packet', async function (packet) {
@@ -67,25 +69,22 @@ module.exports = function (args) {
             ret.info.type = PROTOCOL.ETHERNET.IPV4;
         }
         if (ret.info.type === PROTOCOL.ETHERNET.IPV4) {
-            // console.log(PGNM,'Decoding IPv4 ...');
+            // logger.info(PGNM,'Decoding IPv4 ...');
             ret = decoders.IPV4(buffer, ret.offset);
-            //   console.log(PGNM,ret) ;
+            //   logger.info(PGNM,ret) ;
             if (ret.info.totallen <= 40) return;
-            // console.log(PGNM,'from: ' + ret.info.srcaddr + ' to ' + ret.info.dstaddr, 'tottal len ', ret.info.totallen);
+            // logger.info(PGNM,'from: ' + ret.info.srcaddr + ' to ' + ret.info.dstaddr, 'tottal len ', ret.info.totallen);
             const srcip = ret.info.srcaddr;
             const dstip = ret.info.dstaddr;
             if (ret.info.protocol === PROTOCOL.IP.TCP) {
 
                 let datalen = ret.info.totallen - ret.hdrlen;
-                // console.log(PGNM,'Decoding TCP ...');
+                // logger.info(PGNM,'Decoding TCP ...');
                 ret = decoders.TCP(buffer, ret.offset);
-                //               console.log(PGNM,ret.hdrlen ,srcip, dstip,' from port: ' + ret.info.srcport + ' to port: ' + ret.info.dstport);
+                //               logger.info(PGNM,ret.hdrlen ,srcip, dstip,' from port: ' + ret.info.srcport + ' to port: ' + ret.info.dstport);
                 datalen -= ret.hdrlen;
                 if (datalen <= 0) return;
-                // console.log(PGNM,'seqno ', ret.info.seqno, 'ackno ', ret.info.ackno, 'datalen ', datalen, ' next ', ret.info.seqno + datalen);
-                // console.log(PGNM,ret) ;
-                // console.log(PGNM,buffer.toString('binary', ret.offset, ret.offset + datalen));
-                // console.log(PGNM,buffer.slice(ret.offset, ret.offset + 200).toString());
+
                 let ky = util.format('%s:%d:%d', srcip, ret.info.srcport, Math.floor(ret.info.ackno / 100));
                 let sky = util.format('%s:%d:%s:%d', srcip, ret.info.srcport, dstip, ret.info.dstport);
                 if (patt1.test(dstip) && patt2.test(ret.info.dstport.toString())
@@ -102,7 +101,7 @@ module.exports = function (args) {
                     }
                     let mdata = /^(GET|POST|DELETE|PUT|PATCH)\s+(\S+?)[?\s](?:.*Content-Length:\s*(\d+)|.*)?/s.exec(shead);
                     if (mdata == undefined) {
-                        console.error(PGNM, "mdata undefined", sdata.toString());
+                        logger.error(`mdata undefined ${sdata.toString() }  `);
                         return;
                     }
                     if (/\.(css|js|ico|png|jpg|gif|png|pdf|html)$/i.test(mdata[2])) return;
@@ -135,7 +134,7 @@ module.exports = function (args) {
                     try {
                         datas.uri = decodeURIComponent(mdata[2].replace(/(.+)\/$/, '$1'));
                     } catch (error) {
-                        console.error(PGNM, mdata[2], error);
+                        logger.error(` mdata[2], ${error}`);
                         datas.uri = mdata[2].replace(/(.+)\/$/, '$1');
                     }
                     [datas.uri, datas.params] = datas.uri.split('?');
@@ -153,7 +152,7 @@ module.exports = function (args) {
                 } else if (myMap.has(ky)) {
                     let datas = myMap.get(ky);
                     // if (/s3021\.jsp/.test(datas.uri))
-                    //     console.log(PGNM,datalen, buffer.slice(ret.offset).toString()+":" );
+                    //     logger.info(PGNM,datalen, buffer.slice(ret.offset).toString()+":" );
                     if (ptime > datas.stime)
                         datas.rtime = ptime;
                     let pi = buffer.indexOf("\r\n\r\n");
@@ -166,7 +165,7 @@ module.exports = function (args) {
                     };
                     if (res.match(/Content-Type:\s*image/)) {
                         myMap.delete(ky);
-                        // console.log(PGNM,res) ;
+                        // logger.info(PGNM,res) ;
                         return;
                     };
                     if (/^HTTP\/.+/s.test(res)) {
@@ -182,7 +181,7 @@ module.exports = function (args) {
                         datas.rcode = Number(rcode[1]);
                         datas.rlen = rcode[2] ? Math.min(Number(rcode[2]), MAX_RESP_LEN) : MAX_RESP_LEN;
                     };
-                    // if (datas.seqno == 995092230) console.log("@@" + buffer.slice(pi,pi+100 ).toString());
+                    // if (datas.seqno == 995092230) logger.info("@@" + buffer.slice(pi,pi+100 ).toString());
                     rval = bufTrimN(buffer.slice(pi), datas.isUTF8);
 
                     if (datas.rdata.length > 0)
@@ -191,9 +190,9 @@ module.exports = function (args) {
                     else
                         // datas.rdata = buffer.slice(ret.offset);
                         datas.rdata = rval.data;
-                    // console.log(PGNM,"(1)",buffer.slice(pi, ret.offset).toString().trim() );
-                    // console.log(PGNM,"(2)",rval.chk, rval.data.toString() );
-                    // if ( datas.seqno == 1202683084) console.log("[%s]", buffer.slice(pi ).toString() );
+                    // logger.info(PGNM,"(1)",buffer.slice(pi, ret.offset).toString().trim() );
+                    // logger.info(PGNM,"(2)",rval.chk, rval.data.toString() );
+                    // if ( datas.seqno == 1202683084) logger.info("[%s]", buffer.slice(pi ).toString() );
                     // if (rval.chk || datas.rlen > 0 && (datas.rdata.length >= (MAX_RESP_LEN >= datas.rlen ? MAX_RESP_LEN : datas.rlen))) {
                     if (rval.chk || datas.rlen == 0 || datas.rdata.length >= datas.rlen || ret.info.flags & 0x08) {
                         await insert_data(datas);
@@ -215,16 +214,16 @@ module.exports = function (args) {
                     myMap.set(ky2, datas);
                 }
             } else if (ret.info.protocol === PROTOCOL.IP.UDP) {
-                console.log(PGNM, 'Decoding UDP ...');
+                logger.info('Decoding UDP ...');
                 ret = decoders.UDP(buffer, ret.offset);
-                console.log(PGNM, ' from port: ' + ret.info.srcport + ' to port: ' + ret.info.dstport);
-                console.log(PGNM, buffer.toString('binary', ret.offset, ret.offset + ret.info.length));
+                // logger.info( ' from port: ' + ret.info.srcport + ' to port: ' + ret.info.dstport);
+                // logger.info( buffer.toString('binary', ret.offset, ret.offset + ret.info.length));
             } else
-                console.log(PGNM, 'Unsupported IPv4 protocol: ' + PROTOCOL.IP[ret.info.protocol]);
+                logger.info(`Unsupported IPv4 protocol: ${PROTOCOL.IP[ret.info.protocol] }`);
         } else
-            console.log(PGNM, 'Unsupported Ethertype: ', ret.info.type, PROTOCOL.ETHERNET[ret.info.type]);
+            logger.info(`Unsupported Ethertype: ${ret.info.type}, ${PROTOCOL.ETHERNET[ret.info.type] }`);
     });
-    parser.on('end', endprog);
+    parser.on('end', () => endprog);
     const iconv = require('iconv-lite');
     function bufTrimN(buf, isUTF8) {
         // let pi = buf.length > 100 ? 100 : buf.length;
@@ -236,7 +235,7 @@ module.exports = function (args) {
         // let sz = parseInt( /^\s*([0-9a-fA-F]+)\r\n\s*/s.exec(str) [1], 16) || 0 ;
         let rval = { chk: (/\n0+\r\n\s*$/s.test(str)) };
         // if (rval.chk)
-        //     console.log("**", rval.chk ,str.length, str) ;
+        //     logger.info("**", rval.chk ,str.length, str) ;
         //str = str.replace(/\s0\r\n\s*$/s, '');
         str = str.replace(/^(\r\n)?[0-9a-fA-F]{1,4}\r\n/ms, '');
         str = str.trim();
@@ -246,7 +245,7 @@ module.exports = function (args) {
     async function endprog() {
         let cnt = 0;
         let tcnt = myMap.size;
-        if (tcnt) console.log(PGNM, "myMap:", tcnt);
+        if (tcnt) logger.info(`myMap: ${tcnt}`);
         for (let datas of myMap.values()) {
             // if (datas.rhead.length == 0)  datas.rhead = 'No Data' ;
             if (datas.rhead.length > 0 || datas.rdata.length > 0) {
@@ -258,10 +257,10 @@ module.exports = function (args) {
         }
         myMap.clear();
         if (args.jobId) {
-            await con.query("UPDATE texecjob set resultstat = 9, msg = concat(msg,now(),':',?,'\r\n' ), endDt = now() where pkey = ? ",
+            await con.query("UPDATE texecjob set resultstat = 9, msg = concat(msg,now(),':',?,'\r\n' ), endDt = now() where pkey = ?; commit; ",
                 [icnt + " 건 Import", args.jobId]);
         }
-        console.log("%s *** Import completed (%d 건)***", PGNM, icnt);
+        logger.info(`*** Import completed (${icnt} 건)***`);
         await con.end();
         process.exit();
     }
@@ -284,13 +283,13 @@ module.exports = function (args) {
             .then(dt => {
                 icnt++;
                 if (icnt % 1000 == 0) {
-                    console.log(PGNM + "** insert ok %s", icnt.toLocaleString().padStart(7));
+                    logger.info(`** insert ok ${icnt.toLocaleString().padStart(7)}`);
                 }
 
             })
             .catch(err => {
-                console.error(" insert error size(%d) count(%d) ", datas.rdata.length + datas.sdata.length, icnt);
-                console.error(err);
+                logger.error(` insert error size(${datas.rdata.length + datas.sdata.length}) count(${icnt}) `);
+                logger.error(err);
                 // process.emit('SIGINT');
             });
     }

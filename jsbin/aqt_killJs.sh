@@ -1,2 +1,2 @@
 
-kill `ps -ef |egrep "node (aqt_execJob|aqt_resend).js" |grep -v grep | awk '{printf "%d ",$2}'` 2>/dev/null
+kill `ps -ef |egrep "node aqt_resend.js|aqt_execMstjs" |grep -v grep | awk '{printf "%d ",$2}'` 2>/dev/null

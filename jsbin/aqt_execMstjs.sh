@@ -7,7 +7,7 @@ do
 			   AND tcode IN (SELECT tcode FROM vtcase WHERE pro != '3') order by reqstartdt LIMIT 1" | while read pkey
 		do
 			if [ -z $pkey ]; then break ; fi
-			echo "$pkey " ;
+#			echo "$pkey " ;
 			$AQTHOME/bin/aqtconn "UPDATE texecjob SET resultstat = 2, startDt=NOW(), endDt=NULL WHERE pkey=$pkey; commit;" ;
 			(node ./aqt_execjob.js $pkey ; ./aqt_execChildjs.sh $pkey ) &  
 		done

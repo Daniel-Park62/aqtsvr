@@ -38,6 +38,7 @@ async function main() {
 
 function endprog() {
   logger.info(`program End: ${cnt} 건 수행`);
+  
   con.end();
   process.exit(0) ;
 }

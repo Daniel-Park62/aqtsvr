@@ -10,15 +10,15 @@ const jobid = process.argv[2] ;
 (async () => {
   let childid ;
   const con = await getCon() ;
-  logger.info( "* start Execute Job");
+  logger.info( `* start Execute Job [${jobid}] `) ;
   
   try {
     const rows = await con.query("select pkey, jobkind, tcode, tnum,dbskip, exectype,etc,in_file, \
-                reqnum, repnum, limits, reqstartdt, ifnull(msg,'') msg from texecjob \
+                reqnum, repnum, limits, reqstartdt from texecjob \
               WHERE pkey = ? AND resultstat = 2 ",[jobid] ) ;
       if (rows.length == 0) return;
       
-      await con.query("INSERT INTO texecing (pkey) values (?) on duplicate key update tcnt=1,ccnt=0,ecnt=0 ; ", [rows[0].pkey]) ;
+      await con.query("INSERT INTO texecing (pkey) values (?) on duplicate key update tcnt=1,ccnt=0,ecnt=0 ; commit;", [rows[0].pkey]) ;
 
       if (rows[0].jobkind != 9)
         dumpData(rows[0]);
@@ -59,15 +59,18 @@ const jobid = process.argv[2] ;
       })
       .catch(err => {
         logger.info( err);
-        con.query("UPDATE texecjob set resultstat = 3, msg = concat(?,now(),':',?,'\r\n' ), endDt = now() where pkey = ?", [row.msg, err, row.pkey]);
+        con.query("UPDATE texecjob set resultstat = 3, msg = concat(msg,now(),' ',?,'\r\n' ), endDt = now() where pkey = ?", [err.message, row.pkey]);
       });
   }
-  function endprog() {
+  async function endprog() {
     logger.info( "## Exec job program End");
     if (con) {
       if (jobid) {
          logger.info( "## Update Job Result");
-         con.query("UPDATE texecjob set resultstat = 9, endDt = now() where pkey = ?; commit;", [jobid]);
+         
+         await con.query(`UPDATE texecjob x join texecing y on x.pkey = y.pkey set resultstat = 9,
+                      msg = concat(msg,now(),' ',y.ccnt,' 건 처리','\r\n' ),endDt = now() 
+                      where x.pkey = ?; commit;` , [jobid]);
       }
       con.end();
     }

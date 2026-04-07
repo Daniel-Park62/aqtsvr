@@ -38,7 +38,7 @@ process.on('message', async (pkey) => {
   });
 
   // mybns = checkCon(mybns) ;
-  con.query(`SELECT t.tcode, t.pkey,o_stime,c.appid, if( ifnull(thost,'')>'',thost ,dstip) dstip,
+  con.query(`SELECT t.tcode, t.pkey,o_stime,t.appid, if( ifnull(thost,'')>'',thost ,dstip) dstip,
          if(IFNULL(tport,0)>0, tport, dstport) dstport,uri,sdata, slen 
       FROM vtcppacket t  where t.pkey = ? `, [pkey])
     .then(rdata => dataHandle(rdata[0]))
