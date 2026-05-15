@@ -39,7 +39,7 @@ const jobid = process.argv[2] ;
 
   async function sendData(row) {
 
-    con.query("SELECT lvl,if(pro='1','HTTP',IF(pro='2','UDP','TCP')) pro FROM vtcase WHERE CODE = ?", [row.tcode])
+    con.query("SELECT lvl,if(pro='1','HTTP',IF(pro='2','UDP','TCP')) pro FROM vtcase WHERE TCODE = ?", [row.tcode])
       .then( dat => {
         if (dat[0].lvl == '0') {
           logger.info( "Origin ID 는 테스트 불가합니다.");
@@ -65,13 +65,12 @@ const jobid = process.argv[2] ;
   async function endprog() {
     logger.info( "## Exec job program End");
     if (con) {
-      if (jobid) {
+/*       if (jobid) {
          logger.info( "## Update Job Result");
-         
          await con.query(`UPDATE texecjob x join texecing y on x.pkey = y.pkey set resultstat = 9,
                       msg = concat(msg,now(),' ',y.ccnt,' 건 처리','\r\n' ),endDt = now() 
                       where x.pkey = ?; commit;` , [jobid]);
-      }
+      } */
       con.end();
     }
     if (childid) childid.kill() ;

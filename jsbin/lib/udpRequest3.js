@@ -15,8 +15,8 @@ process.on('uncaughtException', (err) => { logger.error(err) });
 })();
 
 const param = JSON.parse(process.argv[2]) ;
-
-// console.log("thread id:",threadId, param);
+const funcBefore = param.func2 ? new Function('xargs', param.func2) : null;
+const funcAfter = param.func3 ? new Function('xargs', param.func3) : null;
 
 process.on('message', (pkey) => {
   con.ping().catch(async err => {
@@ -33,6 +33,7 @@ process.on('message', (pkey) => {
 });
 
 function dataHandle(rdata) {
+  if (funcBefore) funcBefore(rdata);
   let recvData = [];
   const stimem = performance.now();
   const stime = (new Date()).getTime() / 1000 ;

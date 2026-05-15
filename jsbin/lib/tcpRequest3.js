@@ -16,6 +16,9 @@ process.on('uncaughtException', (err) => { logger.error(err) });
 })();
 
 const param = JSON.parse(process.argv[2]) ;
+const funcBefore = param.func2 ? new Function('xargs', param.func2) : null;
+const funcAfter = param.func3 ? new Function('xargs', param.func3) : null;
+
 // let mybns = checkCon(0) ;
 let ckexists = 0;
 // logger.info( param);
@@ -56,6 +59,8 @@ function checkCon(id) {
   }, 10 * 60 * 1000) ;
 }
 function dataHandle(rdata) {
+  if (funcBefore) funcBefore(rdata);
+
   let recvData = [];
   const stimem = performance.now();
   const stime = (new Date()).getTime() / 1000 ;
@@ -98,6 +103,7 @@ function dataHandle(rdata) {
       rcd = rDatas.readUInt16BE(5) ;
       ajp_parser(rDatas) ;
     }
+    if (funcAfter) funcAfter({rdata : rDatas});
     con.query("UPDATE vpacket SET \
                       rdata = ?, sdata = ?, stime = from_unixtime(?), rtime = from_unixtime(?),  elapsed = ?, rcode = ? ,rlen = ? ,cdate = now() where pkey = ? "
       , [rDatas, rdata.sdata, stime, rtime, svctime, rcd, rsz, rdata.pkey])

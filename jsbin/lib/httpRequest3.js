@@ -17,9 +17,10 @@ process.on('uncaughtException', (err) => { logger.error(err) });
 })();
 const ckMap = new Map();
 
-// let mybns = checkCon(0);
-// const {tcode, cond, dbskip, interval, limit, loop } = workerData ;
 const param = JSON.parse(process.argv[2]);
+// console.log("### param : ", param) ;
+const funcBefore = param.func2 ? new Function('xargs', param.func2) : null;
+const funcAfter = param.func3 ? new Function('xargs', param.func3) : null;
 
 function endProc() {
   if (con) con.end();
@@ -54,6 +55,7 @@ function checkCon(id) {
   }, 10 * 60 * 1000);
 }
 function dataHandle(rdata) {
+  if (funcBefore) funcBefore(rdata);
   let sdataStr = rdata.encval.length > 1 ? iconv.decode(rdata.sdata, rdata.encval).toString() : rdata.sdata.toString();
 
   /* let uri = /^(GET|POST|DELETE|PUT|PATCH)\s+(\S+)\s/s.exec(sdataStr)[2]; */
@@ -122,6 +124,7 @@ function dataHandle(rdata) {
   const stime = (new Date()).getTime() / 1000;
   const auri = `http://${rdata.dstip}:${rdata.dstport}${uri}`;
   logger.info(`uri : ${rdata.method} ${auri}  id=${rdata.pkey} `);
+
   fetch(auri, options)
   .then( async (res) => {
     let resHs = `HTTP/1.1 ${res.status} ${res.statusText}\r\n`;
@@ -148,6 +151,7 @@ function dataHandle(rdata) {
       const rsz = res.headers['content-length'] || rDatas.length;
       //         logger.info(` ${stime.toSqlfmt()} ${rtime.toSqlfmt()} ${svctime} id=${rdata.pkey} Recv len=${rsz} ` );
       // let new_d = Buffer.from(resdata,'binary') ;
+      if (funcAfter) funcAfter({rdata : rDatas});
       con.query(`UPDATE vpacket SET 
                     rdata = ?, headers = ?, stime = from_unixtime(?), rtime = from_unixtime(?), 
                      elapsed = ?, rcode = ? ,errinfo=?,rhead = ?, rlen = ? ,cdate = now() where pkey = ? `

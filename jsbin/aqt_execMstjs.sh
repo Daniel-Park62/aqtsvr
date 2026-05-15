@@ -9,7 +9,7 @@ do
 			if [ -z $pkey ]; then break ; fi
 #			echo "$pkey " ;
 			$AQTHOME/bin/aqtconn "UPDATE texecjob SET resultstat = 2, startDt=NOW(), endDt=NULL WHERE pkey=$pkey; commit;" ;
-			(node ./aqt_execjob.js $pkey ; ./aqt_execChildjs.sh $pkey ) &  
+			(node ./aqt_execJob.js $pkey ; ./aqt_execChildjs.sh $pkey ) &  
 		done
 		
 		read pkey pidv <<<`$AQTHOME/bin/aqtconn "select pkey,pidv from texecing where reqkill = '1' LIMIT 1 "` ;

@@ -8,12 +8,17 @@ async function main() {
     let cc=0
     con.query("select code from tmaster").then(row => console.log(row[0])) ;
     const cmd = "SELECT t.pkey,o_stime " +
-    "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.appid = m.appid ) " ;
+    "FROM ttcppacket t join tmaster c on (t.tcode = c.code ) left join thostmap m on (t.tcode = m.tcode and t.appid = m.appid ) limit 100" ;
+    const func = async (x) => {return babo(x)} ;
+
     for await (const row of con.queryStream(cmd)) {
 //		setImmediate( () => { console.log(row); con.resume()} );
-babo(++cc);
-        await sleep(0) ;
+    
+        babo(++cc);
+        console.log("### ", row.pkey, row.o_stime) ;
 	}
+    await babo(999) ;
+    await func(888);
 	con.end();
     console.log('th end');
 }

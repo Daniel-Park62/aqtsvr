@@ -3,7 +3,7 @@
 */
 
 "use strict";
-const childs = require("./lib/childReq");
+const childs = require("./childReq");
 const {getCon} = require('../db/db_con1') ;
 const logger = require('./logs/aqtLogger').child({label:'sendMain3'});
 
@@ -19,7 +19,7 @@ let dbskip = false;
 let cnt = 0;
 let startt;
 const threads = new Array();
-
+const func = [] ;
 process.on('SIGTERM', () => {
   con.end(); conR.end();
   logger.info( "stop process");
@@ -41,7 +41,12 @@ async function main(param) {
   let orderby = param.tcode.substr(0, 1) === 'Z' ? ' order by rand() ' : ' order by o_stime ';
 
   dbskip = param.dbskip;
+  await funcCreate(param.jobId);
+  
   thread_start(param);
+console.log( "main thread started ", func[1], func[2]) ;
+  if (func[1]) func[1]() ;
+
   while (param.loop-- > 0) {
     let sv_time;
     let delay = 0;
@@ -94,12 +99,13 @@ async function main(param) {
     
     if (threads.length == 0) {
       clearInterval(ival);
-      if (param.hasOwnProperty('jobId'))
+        if (param.hasOwnProperty('jobId'))
         await con.query("UPDATE texecjob x,texecing y set resultstat = 9, x.tcnt= y.tcnt,x.ccnt=y.ccnt,x.ecnt=y.ccnt," +
-          "msg = concat(msg,now(),':',y.ccnt,'건 수행\r\n' ), endDt = now() where x.pkey = ? and x.pkey = y.pkey",
+          "msg = concat(msg,now(),' ',y.ccnt,'건 처리\r\n' ), endDt = now() where x.pkey = ? and x.pkey = y.pkey",
           [param.jobId]);
-      if (!dbskip)
-        await con.query('call sp_summary(?)', [param.tcode]);
+       
+      if (!dbskip)     await con.query('call sp_summary(?)', [param.tcode]);
+      if (func[4]) func[4]() ;
       con.end();
       conR.end();
       logger.info( `${cnt} read`);
@@ -131,6 +137,8 @@ function thread_start(param) {
     TYPEF = '/httpRequest3.js';
 
   const wdata = { dbskip: param.dbskip, aqttimeout };
+  if (func[2]) wdata.func2 = func[2];
+  if (func[3]) wdata.func3 = func[3];
   if (param.tnum < 1) param.tnum = 1;
   for (let i = 0; i < param.tnum; i++) {
 
@@ -175,5 +183,15 @@ function thread_start(param) {
    logger.info( "threads:", threads.length, wdata);
 
 }
-
+async function funcCreate(jobid) {
+  const rows = await con.query(`SELECT  y.pgb, y.src  FROM texecprog x JOIN taqtprog y ON x.progno = y.progno 
+                            where x.pkey = ? ORDER BY y.pgb`,[jobid]  ); 
+  for (const row of rows) {
+    console.log("###", row.pgb, row.src) ;
+    if (row.pgb === '2' || row.pgb === '3') 
+      func[row.pgb] = row.src ;
+    else
+      func[row.pgb] = new Function('xargs' , row.src);
+  }                                     
+}
 process.on('uncaughtException', (err) => { logger.error(err) });
